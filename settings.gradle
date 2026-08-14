@@ -1,0 +1,20 @@
+pluginManagement {
+    repositories {
+        // 优先使用国内镜像源
+        maven {
+            name = "Aliyun"
+            url = "https://maven.aliyun.com/repository/public"
+        }
+        maven {
+            name = "AliyunGradlePlugin"
+            url = "https://maven.aliyun.com/repository/gradle-plugin"
+        }
+        // Fabric 官方仓库（用于 fabric-loom 插件）
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        // Gradle 官方插件门户（作为备用）
+        gradlePluginPortal()
+    }
+}

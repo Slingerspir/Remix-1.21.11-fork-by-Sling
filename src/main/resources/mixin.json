@@ -1,0 +1,45 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "injection",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "MixinAbstractBlockState",
+    "MixinBiome",
+    "MixinCamera",
+    "MixinChatInputSuggestor",
+    "MixinChatScreen",
+    "MixinClientConnection",
+    "MixinClientConnection$Proxy",
+    "MixinClientPlayerEntity",
+    "MixinClientPlayerInteractionManager",
+    "MixinCobwebBlock",
+    "MixinEntity",
+    "MixinGameRenderer",
+    "MixinHeldItemRenderer",
+    "MixinInGameHud",
+    "MixinItemEntityRenderer",
+    "MixinKeyboard",
+    "MixinKeyboardInput",
+    "MixinLivingEntity",
+    "MixinLivingEntityRenderer",
+    "MixinMinecraftClient",
+    "MixinNetworkThreadUtils",
+    "MixinPlayerEntity",
+    "MixinTitleScreen",
+    "accessor.ClientPlayerEntityAccessor",
+    "accessor.ClientWorldAccessor",
+    "accessor.EntityAccessor",
+    "accessor.EntityVelocityUpdateS2CPacketAccessor",
+    "accessor.MinecraftClientAccessor",
+    "accessor.NativeImageAccessor",
+    "accessor.PlayerMoveC2SPacketAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

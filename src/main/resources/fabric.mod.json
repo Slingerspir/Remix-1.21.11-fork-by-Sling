@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "flux",
+  "version": "${version}",
+  "name": "flux",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [],
+    "main": []
+  },
+  "mixins": [
+    "mixin.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
