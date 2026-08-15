@@ -81,4 +81,8 @@ public abstract class AbstractScreen extends Screen implements IMinecraft {
         }
         return super.keyPressed(input);
     }
+
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return false;
+    }
 }

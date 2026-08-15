@@ -4,15 +4,18 @@ import cn.remix.ui.font.TrueTypeFont;
 import cn.remix.ui.screen.AbstractScreen;
 import cn.remix.ui.screen.util.AdaptiveButton;
 import cn.remix.ui.screen.util.AdaptiveTextBox;
+import cn.remix.util.render.Render2D;
 import lombok.Getter;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.KeyInput;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 
 public class ProxyScreen extends AbstractScreen {
+    private static final Identifier BACKGROUND = Identifier.of("remix", "textures/mainmenu/background.png");
     private final Screen parent;
     private AdaptiveTextBox ipBox;
     private AdaptiveTextBox portBox;
@@ -106,14 +109,34 @@ public class ProxyScreen extends AbstractScreen {
 
     @Override
     protected void renderScreen(DrawContext context, int mouseX, int mouseY, float delta) {
+        float screenWidth = this.width;
+        float screenHeight = this.height;
+
+        // ===== 背景 =====
+        Render2D.drawTexture(context, BACKGROUND, 0, 0, screenWidth, screenHeight, 0, 0, 1, 1, 0xFFFFFFFF);
+
+        // ===== 黑色遮罩 =====
+        Render2D.drawRect(context, 0, 0, screenWidth, screenHeight, new Color(0, 0, 0, 70).getRGB());
+
+        // ===== 标题 =====
         TrueTypeFont font50 = instance.getFontManager().getFont(50);
-        TrueTypeFont font19 = instance.getFontManager().getFont(19);
-
         float titleWidth = font50.getStringWidth("Proxy");
-        font50.drawString(context, "Proxy", (this.width - titleWidth) / 2f, this.height / 2f - 95f, -1, true);
+        font50.drawString(context, "Proxy", (screenWidth - titleWidth) / 2f, screenHeight / 2f - 95f, -1, false);
 
+        // ===== 状态信息 =====
+        TrueTypeFont font19 = instance.getFontManager().getFont(19);
         float statusWidth = font19.getStringWidth(statusMessage);
-        font19.drawString(context, statusMessage, (this.width - statusWidth) / 2f, this.height / 2f - 65f, statusColor, true);
+        font19.drawString(context, statusMessage, (screenWidth - statusWidth) / 2f, screenHeight / 2f - 65f, statusColor, false);
+
+        // ===== 按钮 =====
+        for (AdaptiveButton btn : buttons) {
+            btn.render(context, mouseX, mouseY, delta);
+        }
+
+        // ===== 文本框 =====
+        for (AdaptiveTextBox box : textBoxes) {
+            box.render(context);
+        }
     }
 
     @Override

@@ -25,7 +25,9 @@ public final class Render2D implements IMinecraft {
     public void setGlobalAlpha(float alpha) {
         globalAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
     }
-
+    public float getGlobalAlpha() {
+        return globalAlpha;
+    }
     public void drawRect(DrawContext context, float x, float y, float width, float height, int color) {
         drawGradient(context, x, y, width, height, color, color, false);
     }
@@ -39,14 +41,32 @@ public final class Render2D implements IMinecraft {
             return;
         }
 
-        drawRect(context, x + radius, y, width - radius * 2.0f, height, color);
-        drawRect(context, x, y + radius, radius, height - radius * 2.0f, color);
-        drawRect(context, x + width - radius, y + radius, radius, height - radius * 2.0f, color);
+        drawRect(context, x + radius, y, width - radius * 2.0f, height, color);                      // 垂直主块
+        drawRect(context, x, y + radius, radius, height - radius * 2.0f, color);                    // 左翼
+        drawRect(context, x + width - radius, y + radius, radius, height - radius * 2.0f, color);  // 右翼
 
-        context.state.addSimpleElement(new RoundedCornerGuiElementRenderState(
-                RenderPipelines.GUI, TextureSetup.empty(), new Matrix3x2f(context.getMatrices()),
-                x, y, width, height, radius, color, context.scissorStack.peekLast()
-        ));
+        drawArc(context, x + radius, y + radius, radius, 180, 270, color);               // 左上角
+        drawArc(context, x + width - radius, y + radius, radius, 270, 360, color);        // 右上角
+        drawArc(context, x + width - radius, y + height - radius, radius, 0, 90, color);  // 右下角
+        drawArc(context, x + radius, y + height - radius, radius, 90, 180, color);        // 左下角
+    }
+
+    public void drawArc(DrawContext context, float cx, float cy, float radius, float startAngle, float endAngle, int color) {
+        int segments = 10;
+        double step = Math.toRadians(endAngle - startAngle) / segments;
+        double startRad = Math.toRadians(startAngle);
+
+        for (int i = 0; i < segments; i++) {
+            double a1 = startRad + i * step;
+            double a2 = startRad + (i + 1) * step;
+
+            float x1 = (float) (cx + Math.cos(a1) * radius);
+            float y1 = (float) (cy + Math.sin(a1) * radius);
+            float x2 = (float) (cx + Math.cos(a2) * radius);
+            float y2 = (float) (cy + Math.sin(a2) * radius);
+
+            drawTriangle(context, cx, cy, x1, y1, x2, y2, color);
+        }
     }
 
     public void drawGradient(DrawContext context, float x, float y, float width, float height, int startColor, int endColor, boolean horizontal) {
@@ -166,8 +186,8 @@ public final class Render2D implements IMinecraft {
         int textureY = 176;
 
         drawTexture(context, icons, x, y, 10, 8,
-                    textureX / 256f, textureY / 256f,
-                    (textureX + 10) / 256f, (textureY + 8) / 256f, -1);
+                textureX / 256f, textureY / 256f,
+                (textureX + 10) / 256f, (textureY + 8) / 256f, -1);
     }
 
     private record FloatQuadTexturedGuiElementRenderState(
@@ -277,42 +297,6 @@ public final class Render2D implements IMinecraft {
             float maxX = Math.max(Math.max(x1, x2), Math.max(x3, x4));
             float maxY = Math.max(Math.max(y1, y2), Math.max(y3, y4));
             ScreenRect rect = new ScreenRect(Math.round(minX), Math.round(minY), Math.round(maxX - minX), Math.round(maxY - minY)).transformEachVertex(pose);
-            return scissorArea != null ? scissorArea.intersection(rect) : rect;
-        }
-    }
-
-    private record RoundedCornerGuiElementRenderState(
-            RenderPipeline pipeline, TextureSetup textureSetup, Matrix3x2fc pose,
-            float x, float y, float width, float height, float radius, int color,
-            @Nullable ScreenRect scissorArea, @Nullable ScreenRect bounds
-    ) implements SimpleGuiElementRenderState {
-        private static final int SEGMENTS = 10;
-
-        private RoundedCornerGuiElementRenderState(RenderPipeline pipeline, TextureSetup textureSetup, Matrix3x2fc pose, float x, float y, float width, float height, float radius, int color, @Nullable ScreenRect scissorArea) {
-            this(pipeline, textureSetup, pose, x, y, width, height, radius, color, scissorArea, createBounds(x, y, width, height, pose, scissorArea));
-        }
-
-        @Override
-        public void setupVertices(VertexConsumer v) {
-            emitCorner(v, x + radius, y + radius, Math.PI, Math.PI * 1.5);
-            emitCorner(v, x + width - radius, y + radius, Math.PI * 1.5, Math.PI * 2.0);
-            emitCorner(v, x + width - radius, y + height - radius, 0.0, Math.PI * 0.5);
-            emitCorner(v, x + radius, y + height - radius, Math.PI * 0.5, Math.PI);
-        }
-
-        private void emitCorner(VertexConsumer v, float cx, float cy, double start, double end) {
-            for (int i = 0; i < SEGMENTS; i++) {
-                double a0 = start + (end - start) * i / SEGMENTS;
-                double a1 = start + (end - start) * (i + 1) / SEGMENTS;
-                v.vertex(pose, cx, cy).color(color);
-                v.vertex(pose, cx + (float) Math.cos(a0) * radius, cy + (float) Math.sin(a0) * radius).color(color);
-                v.vertex(pose, cx + (float) Math.cos(a1) * radius, cy + (float) Math.sin(a1) * radius).color(color);
-                v.vertex(pose, cx + (float) Math.cos(a1) * radius, cy + (float) Math.sin(a1) * radius).color(color);
-            }
-        }
-
-        private static @Nullable ScreenRect createBounds(float x, float y, float width, float height, Matrix3x2fc pose, @Nullable ScreenRect scissorArea) {
-            ScreenRect rect = new ScreenRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height)).transformEachVertex(pose);
             return scissorArea != null ? scissorArea.intersection(rect) : rect;
         }
     }

@@ -110,7 +110,8 @@ public class ModuleManager implements IMinecraft {
                 new AirJump(),
                 new AntiCheatDetect(),
                 new FlyPlus(),
-                new Timer()
+                new Timer(),
+                new NoFall2()
         );
 
         sortModules();

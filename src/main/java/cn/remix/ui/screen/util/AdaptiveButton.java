@@ -2,8 +2,6 @@ package cn.remix.ui.screen.util;
 
 import cn.remix.ui.font.TrueTypeFont;
 import cn.remix.util.IMinecraft;
-import cn.remix.util.animation.Easing;
-import cn.remix.util.animation.EasingAnimation;
 import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render2D;
 import net.minecraft.client.gui.DrawContext;
@@ -11,10 +9,11 @@ import net.minecraft.client.gui.DrawContext;
 import java.awt.*;
 
 public class AdaptiveButton implements IMinecraft {
-    private final EasingAnimation animation = new EasingAnimation(Easing.EASE_OUT_EXPO, 350);
     private float x, y, width, height;
     private final String text;
     private final Runnable action;
+
+    private float hoverProgress = 0.0f;
 
     public AdaptiveButton(String text, Runnable action) {
         this.text = text;
@@ -28,17 +27,47 @@ public class AdaptiveButton implements IMinecraft {
         this.height = height;
     }
 
-    public void render(DrawContext context, int mouseX, int mouseY) {
-        animation.run(isHovered(mouseX, mouseY) ? 1 : 0);
-        TrueTypeFont font = instance.getFontManager().getFont(19);
+    public float getX() { return x; }
+    public float getY() { return y; }
+    public float getWidth() { return width; }
+    public float getHeight() { return height; }
+    public void setY(float y) { this.y = y; }
 
-        float textWidth = font.getStringWidth(text);
-        float textX = x + (width - textWidth) / 2f;
-        float textY = y + (height - font.getHeight()) / 2f;
-        int textColor = ColorUtil.interpolate(new Color(200, 200, 200).getRGB(), new Color(255, 255, 255).getRGB(), animation.getValue().floatValue());
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        boolean hovered = isHovered(mouseX, mouseY);
+        float targetHover = hovered ? 1.0f : 0.0f;
+        hoverProgress += (targetHover - hoverProgress) * Math.min(1.0f, 0.12f * delta);
 
-        Render2D.drawRect(context, x, y, width, height, new Color(0, 0, 0, 80).getRGB());
+        TrueTypeFont font = instance.getFontManager().getFont(18);
+
+        int bgColor = ColorUtil.interpolate(
+                new Color(255, 255, 255, 15).getRGB(),
+                new Color(255, 255, 255, 40).getRGB(),
+                hoverProgress
+        );
+        Render2D.drawRect(context, x, y, width, height, bgColor);
+
+        int borderColor = ColorUtil.interpolate(
+                new Color(255, 255, 255, 30).getRGB(),
+                new Color(255, 255, 255, 80).getRGB(),
+                hoverProgress
+        );
+        Render2D.drawOutline(context, x, y, width, height, 1.0f, borderColor);
+
+        int textColor = ColorUtil.interpolate(
+                new Color(180, 180, 180, 200).getRGB(),
+                new Color(255, 255, 255, 255).getRGB(),
+                hoverProgress
+        );
+
+        float textX = x + (width - font.getStringWidth(text)) / 2f;
+        float textY = y + (height - font.getHeight()) / 2f + 1f;
+
         font.drawString(context, text, textX, textY, textColor, false);
+    }
+
+    public void render(DrawContext context, int mouseX, int mouseY) {
+        render(context, mouseX, mouseY, 1.0f);
     }
 
     public boolean isHovered(double mouseX, double mouseY) {
@@ -46,6 +75,8 @@ public class AdaptiveButton implements IMinecraft {
     }
 
     public void onClick() {
-        action.run();
+        if (action != null) {
+            action.run();
+        }
     }
 }

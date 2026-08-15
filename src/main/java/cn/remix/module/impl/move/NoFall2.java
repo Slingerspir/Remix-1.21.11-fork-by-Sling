@@ -12,13 +12,13 @@ import injection.accessor.PlayerMoveC2SPacketAccessor;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.math.Direction;
 
-public final class NoFall extends Module {
+public final class NoFall2 extends Module {
 
-    private final NumberValue triggerHeight = new NumberValue("Trigger Height", 3.2f, 0.5f, 6.0f, 0.1f);
+    private final NumberValue triggerHeight = new NumberValue("Trigger Height", 2.0, 0.5, 5.0, 0.1);
 
     private boolean triggered = false;
 
-    public NoFall() {
+    public NoFall2() {
         super("NoFall", Category.Move);
     }
 
@@ -49,8 +49,8 @@ public final class NoFall extends Module {
         }
 
         double distance = getDistanceToGround();
-        float height = triggerHeight.getValue();
 
+        float height = triggerHeight.getValue().floatValue();
         if (distance <= height && distance > 0.1) {
             doNoFall();
             triggered = true;
@@ -80,18 +80,15 @@ public final class NoFall extends Module {
     private void doNoFall() {
         if (mc.player == null) return;
 
-        // 重置摔落距离
         mc.player.fallDistance = 0.0f;
 
-        float height = triggerHeight.getValue();
-        double bounce = Math.min(height * 0.15, 0.5);
         mc.player.setVelocity(
                 mc.player.getVelocity().x * 0.95,
-                bounce,
+                0.05,  // 向上弹 0.05 格
                 mc.player.getVelocity().z * 0.95
         );
 
-        // 只发一次 OnGround
+        // 3️⃣ 发送落地包
         PacketUtil.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true, mc.player.horizontalCollision));
     }
 
@@ -112,6 +109,7 @@ public final class NoFall extends Module {
         if (mc.player == null || mc.world == null) return;
         if (event.isPost()) return;
 
+        //  触发后，强制设置 onGround=true
         if (triggered && !mc.player.isOnGround()) {
             event.setOnGround(true);
         }
