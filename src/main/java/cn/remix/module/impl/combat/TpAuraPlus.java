@@ -24,15 +24,16 @@ import cn.remix.util.render.Render2D;
 import cn.remix.util.render.Render3D;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EntityPosition;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.common.CommonPongC2SPacket;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.network.packet.c2s.play.UpdatePlayerAbilitiesC2SPacket;
+import net.minecraft.network.packet.c2s.play.TeleportConfirmC2SPacket;
 import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
-import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -42,14 +43,16 @@ import net.minecraft.world.RaycastContext;
 import org.joml.Vector4f;
 
 import java.awt.*;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 @lombok.Getter
-public final class TpAura extends Module {
+public final class TpAuraPlus extends Module {
 
     private static final long VISUAL_FADE_MS = 1200L;
     private static final long LAGBACK_PAUSE_MS = 1200L;
@@ -59,59 +62,51 @@ public final class TpAura extends Module {
         IDLE, OUTBOUND, AIM, HOLD, RETURNING, PAUSED
     }
 
-    private final ModeValue mode = new ModeValue("Mode", "Cubecraft", "Cubecraft", "Vanilla", "Paper");
     private final ModeValue priority = new ModeValue("Priority", "Distance", "Distance", "Health", "LivingTime", "Armor");
-    private final NumberValue range = new NumberValue("Range", 20.0, 3.0, 128.0, 1.0);
+    private final NumberValue range = new NumberValue("Range", 12.0, 3.0, 64.0, 1.0);
     private final NumberValue stepSize = new NumberValue("Step Size", 1.0f, 0.5f, 8.0f, 0.1f);
     private final NumberValue packetsPerTick = new NumberValue("Packets/Tick", 2, 1, 20, 1);
     private final NumberValue vClip = new NumberValue("VClip", 8.0, 2.0, 64.0, 1.0);
     private final NumberValue prev = new NumberValue("Prev", 0.0, 0.0, 5.0, 0.1);
-    private final BoolValue prewarmPackets = new BoolValue("Prewarm Packets", false);
-    private final NumberValue prewarmPacketCount = new NumberValue("Prewarm Count", 4, 1, 20, 1, prewarmPackets::getValue);
+    private final BoolValue safeTargetFallback = new BoolValue("Safe Target Fallback", true);
     private final BoolValue randomOffset = new BoolValue("Random Offset", true);
     private final NumberValue offsetXZ = new NumberValue("Offset XZ", 0.05f, 0.0f, 0.3f, 0.01f, randomOffset::getValue);
     private final NumberValue offsetY = new NumberValue("Offset Y", 0.01f, 0.0f, 0.2f, 0.01f, randomOffset::getValue);
-    private final BoolValue safeTargetFallback = new BoolValue("Safe Target Fallback", true);
     private final BoolValue rotate = new BoolValue("Rotate", true);
     private final BoolValue swing = new BoolValue("Swing", true);
-    private final BoolValue fakeAutoBlock = new BoolValue("Fake AutoBlock", false);
     private final BoolValue useMace = new BoolValue("Use Mace", false);
     private final BoolValue useCooldown = new BoolValue("Use Cooldown", true);
     private final NumberValue useCooldownBaseTime = new NumberValue("Cooldown Base", 0.75f, 0.1f, 1.0f, 0.05f, useCooldown::getValue);
     private final NumberValue attackDelay = new NumberValue("Attack Delay", 50, 1, 2000, 25, () -> !useCooldown.getValue());
     private final NumberValue attackTimes = new NumberValue("Attack Times", 1, 1, 50, 1);
-    private final NumberValue preAttackDelay = new NumberValue("Pre-Attack Delay", 2, 0, 10, 1);
-    private final NumberValue attackWaitTicks = new NumberValue("Return Delay Ticks", 15, 0, 100, 1);
+    private final NumberValue preAttackDelay = new NumberValue("Pre-Attack Delay", 1, 0, 10, 1);
+    private final NumberValue attackWaitTicks = new NumberValue("Return Delay Ticks", 10, 0, 100, 1);
     private final BoolValue tryMissTotem = new BoolValue("Try Miss Totem", false);
-    private final BoolValue cancelPingPackets = new BoolValue("Cancel Ping Packets", false);
     private final BoolValue lagbackDisable = new BoolValue("Disable on Lagback", false);
-    private final NumberValue renderPosScale = new NumberValue("Render Pos Scale", 0.6, 0.2, 1.0, 0.01);
-    private final ModeValue highlightTarget = new ModeValue("Highlight Target", "2D", "Off", "2D", "Glow");
-    private final BoolValue renderPos = new BoolValue("Render Pos", true);
-    private final ColorValue renderPosColor = new ColorValue("Render Pos Color", new Color(255, 165, 0), renderPos::getValue);
+    private final BoolValue antiCorrection = new BoolValue("Anti Teleport", true);
     private final BoolValue renderTrail = new BoolValue("Render Trail", true);
-    private final ColorValue renderTrailColor = new ColorValue("Render Trail Color", Color.PINK, renderTrail::getValue);
+    private final ColorValue renderTrailColor = new ColorValue("Render Trail Color", Color.CYAN, renderTrail::getValue);
 
     private final TimerUtil attackTimer = new TimerUtil();
     private final TimerUtil lagbackTimer = new TimerUtil();
     private final List<VisualPoint> visualPoints = new ArrayList<>();
     private final List<Vec3d> path = new ArrayList<>();
+    private final Deque<Packet<?>> pendingPackets = new ArrayDeque<>();
 
     private Phase phase = Phase.IDLE;
     private int pathIndex;
     private int holdTicksLeft;
     private int preAttackTicksLeft;
-    private Vec3d originalPos;
     private Vec3d attackPos;
-    private Vec3d returnTo;
     private LivingEntity target;
     private LivingEntity chaseTarget;
     private LivingEntity attackEntity;
-    private boolean renderBlock;
+    private boolean recovering;
+    private long lastCycleEndTime;
     private Vector4f highlightBounds;
 
-    public TpAura() {
-        super("TpAura", Category.Combat);
+    public TpAuraPlus() {
+        super("TpAuraPlus", Category.Combat);
     }
 
     @Override
@@ -143,7 +138,6 @@ public final class TpAura extends Module {
             resetCycle();
             chaseTarget = aura.getTarget();
             target = null;
-            renderBlock = false;
             return;
         }
 
@@ -152,7 +146,6 @@ public final class TpAura extends Module {
         }
 
         updateTarget();
-        renderBlock = fakeAutoBlock.getValue() && target != null && isHoldingSword();
 
         switch (phase) {
             case IDLE -> startCycle();
@@ -187,46 +180,49 @@ public final class TpAura extends Module {
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
-        if (!highlightTarget.is("2D") || highlightBounds == null) return;
+        if (highlightBounds == null) return;
 
         float x = highlightBounds.x;
         float y = highlightBounds.y;
         float width = highlightBounds.z - highlightBounds.x;
         float height = highlightBounds.w - highlightBounds.y;
-        Render2D.drawOutline(event.getContext(), x - 2.0f, y - 2.0f, width + 4.0f, height + 4.0f, 2.5f, Color.RED.getRGB());
+        Render2D.drawOutline(event.getContext(), x - 2.0f, y - 2.0f, width + 4.0f, height + 4.0f, 2.5f, Color.ORANGE.getRGB());
     }
 
     @EventTarget
     public void onPacket(PacketEvent event) {
         if (mc.player == null || mc.world == null) return;
-
-        if (event.getType() == PacketEvent.Type.Send) {
-
-            if (cancelPingPackets.getValue() &&
-                    (event.getPacket() instanceof UpdatePlayerAbilitiesC2SPacket || event.getPacket() instanceof CommonPongC2SPacket)) {
-                event.setCancelled();
-            }
-            return;
-        }
-
         if (event.getType() != PacketEvent.Type.Received) return;
 
         if (event.getPacket() instanceof EntityStatusS2CPacket packet && tryMissTotem.getValue() && packet.getStatus() == 35 && target != null && packet.getEntity(mc.world) == target) {
-
             if (phase == Phase.IDLE) {
-                originalPos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
                 attackPos = getPredictedPos(target, 0.0);
                 attackEntity = target;
                 path.clear();
-                path.addAll(buildPath(originalPos, attackPos));
+                path.addAll(buildPath(getClientPos(), attackPos));
                 pathIndex = 0;
                 phase = Phase.OUTBOUND;
             }
             return;
         }
 
-        if (event.getPacket() instanceof PlayerPositionLookS2CPacket) {
-            handleLagback();
+        if (event.getPacket() instanceof PlayerPositionLookS2CPacket packet) {
+            boolean inCycle = phase != Phase.IDLE;
+            boolean protectedWindow = System.currentTimeMillis() - lastCycleEndTime < 2000L;
+            if (antiCorrection.getValue() && (inCycle || protectedWindow)) {
+
+                event.setCancelled();
+                PacketUtil.sendPacketNoEvent(new TeleportConfirmC2SPacket(packet.teleportId()));
+                if (inCycle) {
+                    recoverFromCorrection(packet);
+                } else {
+                    resetCycle();
+                    phase = Phase.PAUSED;
+                    lagbackTimer.reset();
+                }
+            } else {
+                handleLagback();
+            }
         }
     }
 
@@ -243,38 +239,41 @@ public final class TpAura extends Module {
         pathIndex = 0;
         holdTicksLeft = 0;
         preAttackTicksLeft = 0;
-        originalPos = null;
         attackPos = null;
-        returnTo = null;
         attackEntity = null;
+        recovering = false;
+        pendingPackets.clear();
+    }
+
+    private void markCycleEnd() {
+        lastCycleEndTime = System.currentTimeMillis();
     }
 
     private void startCycle() {
         if (target == null || !isReadyToAttack()) return;
         if (mc.player.distanceTo(target) > range.getValue()) return;
 
-        if (mc.player.distanceTo(target) <= 3.0) {
+        if (mc.player.distanceTo(target) <= 6.0) {
             attackEntity = target;
             attackNow();
+            flushPending();
             attackTimer.reset();
             return;
         }
 
-        Vec3d playerPos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
         Vec3d targetPos = getPredictedPos(target, prev.getValue());
-        Vec3d attack = safeTargetFallback.getValue() ? findVisibleAttackPos(targetPos) : targetPos;
+        attackEntity = target;
+        Vec3d attack = safeTargetFallback.getValue() ? findVisibleAttackPos(targetPos, target) : targetPos;
         if (attack == null) {
-            Util.log("[TpAura] No safe attack position.");
+            Util.log("[TpAuraPlus] No safe attack position.");
             return;
         }
 
-        originalPos = playerPos;
         attackPos = attack;
-        attackEntity = target;
 
-        List<Vec3d> outbound = buildOutboundPath(playerPos, attack);
+        List<Vec3d> outbound = buildOutboundPath(getClientPos(), attack);
         if (outbound.isEmpty()) {
-            Util.log("[TpAura] TP path empty.");
+            Util.log("[TpAuraPlus] TP path empty.");
             return;
         }
 
@@ -282,10 +281,12 @@ public final class TpAura extends Module {
         path.addAll(outbound);
         pathIndex = 0;
         phase = Phase.OUTBOUND;
-        sendPrewarmPackets();
     }
 
     private void tickOutbound() {
+
+        flushPending();
+
         int sent = 0;
         int budget = Math.max(1, packetsPerTick.getValue().intValue());
         Vec3d lastSent = null;
@@ -294,9 +295,9 @@ public final class TpAura extends Module {
             Vec3d point = path.get(pathIndex);
             boolean last = pathIndex == path.size() - 1;
             if (last) {
-                sendMovePacket(point, getAttackRotations(), isOnGroundAt(point));
+                sendDelayed(point, getAttackRotations(), isOnGroundAt(point));
             } else {
-                sendMovePacket(point, null, isOnGroundAt(point));
+                sendDelayed(point, null, isOnGroundAt(point));
             }
             recordPoint(point);
             pathIndex++;
@@ -305,28 +306,25 @@ public final class TpAura extends Module {
         }
 
         if (pathIndex < path.size() && lastSent != null && !isOnGroundAt(lastSent)) {
-            sendMovePacket(lastSent, null, true);
+            sendDelayed(lastSent, null, true);
         }
 
         if (pathIndex >= path.size()) {
-
             preAttackTicksLeft = Math.max(0, preAttackDelay.getValue().intValue());
-            if (preAttackTicksLeft > 0) {
-                phase = Phase.AIM;
-            } else {
+            phase = preAttackTicksLeft > 0 ? Phase.AIM : Phase.HOLD;
+            if (preAttackTicksLeft <= 0) {
                 attackNow();
                 holdTicksLeft = attackWaitTicks.getValue().intValue();
-                phase = holdTicksLeft > 0 ? Phase.HOLD : Phase.RETURNING;
-                if (phase == Phase.RETURNING) {
+                if (holdTicksLeft <= 0) {
                     buildReturnPath();
+                    phase = Phase.RETURNING;
                 }
             }
         }
     }
 
     private void tickAim() {
-
-        pinPosition();
+        flushPending();
 
         if (preAttackTicksLeft > 0) {
             preAttackTicksLeft--;
@@ -342,7 +340,7 @@ public final class TpAura extends Module {
     }
 
     private void tickHold() {
-
+        flushPending();
         pinPosition();
 
         if (holdTicksLeft > 0) {
@@ -355,34 +353,48 @@ public final class TpAura extends Module {
     }
 
     private void tickReturning() {
+        flushPending();
+
         int sent = 0;
         int budget = Math.max(1, packetsPerTick.getValue().intValue());
 
         while (pathIndex < path.size() && sent < budget) {
             Vec3d point = path.get(pathIndex);
-            sendMovePacket(point, null, isOnGroundAt(point));
+            sendDelayed(point, null, isOnGroundAt(point));
             recordPoint(point);
             pathIndex++;
             sent++;
         }
 
         if (pathIndex >= path.size()) {
-            syncClientPosition(returnTo != null ? returnTo : originalPos);
-            resetCycle();
-            attackTimer.reset();
+
+            flushPending();
+            if (recovering) {
+                recovering = false;
+                resetCycle();
+                phase = Phase.PAUSED;
+                lagbackTimer.reset();
+            } else {
+                markCycleEnd();
+                resetCycle();
+                attackTimer.reset();
+            }
         }
     }
 
     private void buildReturnPath() {
-        if (originalPos == null || attackPos == null) {
+        if (attackPos == null) {
             resetCycle();
             return;
         }
-
-        returnTo = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+        Vec3d returnTo = getClientPos();
         path.clear();
         path.addAll(buildOutboundPath(attackPos, returnTo));
         pathIndex = 0;
+    }
+
+    private Vec3d getClientPos() {
+        return new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
     }
 
     private void attackNow() {
@@ -396,14 +408,65 @@ public final class TpAura extends Module {
             return;
         }
 
-        int times = mode.is("Cubecraft") ? 1 : Math.max(1, attackTimes.getValue().intValue());
+        int times = Math.max(1, attackTimes.getValue().intValue());
         for (int i = 0; i < times; i++) {
-            PacketUtil.sendPacket(PlayerInteractEntityC2SPacket.attack(attackEntity, false));
+            pendingPackets.add(PlayerInteractEntityC2SPacket.attack(attackEntity, false));
         }
 
         if (swing.getValue()) {
             mc.player.swingHand(Hand.MAIN_HAND);
         }
+    }
+
+    private void sendDelayed(Vec3d vec, float[] rot, boolean onGround) {
+        if (rot != null) {
+            pendingPackets.add(new PlayerMoveC2SPacket.Full(vec.x, vec.y, vec.z, rot[0], rot[1], onGround, mc.player.horizontalCollision));
+        } else {
+            pendingPackets.add(new PlayerMoveC2SPacket.PositionAndOnGround(vec.x, vec.y, vec.z, onGround, mc.player.horizontalCollision));
+        }
+    }
+
+    private void flushPending() {
+        while (!pendingPackets.isEmpty()) {
+            PacketUtil.sendPacketNoEvent(pendingPackets.poll());
+        }
+    }
+
+    private void pinPosition() {
+        if (attackPos == null || mc.player == null) return;
+        sendDelayed(attackPos, null, true);
+    }
+
+    private void recoverFromCorrection(PlayerPositionLookS2CPacket packet) {
+        Vec3d corrected = decodeCorrection(packet);
+        Vec3d real = getClientPos();
+
+        pendingPackets.clear();
+        resetCycle();
+
+        if (corrected != null && corrected.squaredDistanceTo(real) > 1.0) {
+            path.clear();
+            path.addAll(buildPath(corrected, real));
+            pathIndex = 0;
+            recovering = true;
+            phase = Phase.RETURNING;
+        } else {
+            phase = Phase.PAUSED;
+            lagbackTimer.reset();
+        }
+    }
+
+    private Vec3d decodeCorrection(PlayerPositionLookS2CPacket packet) {
+        if (mc.player == null) return null;
+        Vec3d pos = packet.change().position();
+        Set<PositionFlag> relatives = packet.relatives();
+        double x = pos.x;
+        double y = pos.y;
+        double z = pos.z;
+        if (relatives.contains(PositionFlag.X)) x += mc.player.getX();
+        if (relatives.contains(PositionFlag.Y)) y += mc.player.getY();
+        if (relatives.contains(PositionFlag.Z)) z += mc.player.getZ();
+        return new Vec3d(x, y, z);
     }
 
     private List<Vec3d> buildOutboundPath(Vec3d from, Vec3d to) {
@@ -466,25 +529,39 @@ public final class TpAura extends Module {
         return null;
     }
 
-    private Vec3d findVisibleAttackPos(Vec3d desired) {
+    private Vec3d findVisibleAttackPos(Vec3d desired, LivingEntity entity) {
+        Box targetBox = entity != null ? entity.getBoundingBox() : new Box(desired, desired.add(1.0, 1.8, 1.0));
         Vec3d targetBody = new Vec3d(desired.x, desired.y + 1.0, desired.z);
-        if (hasLineOfSight(desired.add(0.0, 1.0, 0.0), targetBody)) {
+
+        if (hasLineOfSight(desired.add(0.0, 1.0, 0.0), targetBody) && reachDistance(desired, targetBox) <= 3.5) {
             return desired;
         }
 
-        for (int dy = 0; dy <= 2; dy++) {
+        List<Vec3d> candidates = new ArrayList<>();
+        for (int dy = -1; dy <= 2; dy++) {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
                     Vec3d test = desired.add(dx, dy, dz);
-                    if (test.squaredDistanceTo(desired) > 9.0) continue;
                     if (!isInvalidPosition(test) && hasLineOfSight(test.add(0.0, 1.0, 0.0), targetBody)) {
-                        return test;
+                        candidates.add(test);
                     }
                 }
             }
         }
 
+        candidates.sort(Comparator.comparingDouble(candidate -> reachDistance(candidate, targetBox)));
+        for (Vec3d candidate : candidates) {
+            if (reachDistance(candidate, targetBox) <= 3.5) {
+                return candidate;
+            }
+        }
+
         return safeTargetFallback.getValue() ? findNearestSafePos(desired) : desired;
+    }
+
+    private double reachDistance(Vec3d pos, Box box) {
+        Vec3d eye = pos.add(0.0, mc.player.getEyeHeight(mc.player.getPose()), 0.0);
+        return Math.sqrt(box.squaredMagnitude(eye));
     }
 
     private boolean hasLineOfSight(Vec3d from, Vec3d to) {
@@ -506,78 +583,11 @@ public final class TpAura extends Module {
         return !below.getCollisionShape(mc.world, BlockPos.ofFloored(pos.x, pos.y - 0.1, pos.z)).isEmpty();
     }
 
-    private void sendMovePacket(Vec3d vec, float[] rot, boolean onGround) {
-        if (rot != null) {
-            PacketUtil.sendPacket(new PlayerMoveC2SPacket.Full(vec.x, vec.y, vec.z, rot[0], rot[1], onGround, mc.player.horizontalCollision));
-        } else {
-            PacketUtil.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(vec.x, vec.y, vec.z, onGround, mc.player.horizontalCollision));
-        }
-    }
-
-    private void pinPosition() {
-        if (attackPos == null || mc.player == null) return;
-        sendMovePacket(attackPos, null, true);
-    }
-
-    private void sendPrewarmPackets() {
-        if (!prewarmPackets.getValue() || mode.is("Cubecraft")) {
-            return;
-        }
-
-        int count = prewarmPacketCount.getValue().intValue();
-        if (mode.is("Vanilla")) {
-            count = Math.min(count, 4);
-        }
-
-        for (int i = 0; i < count; i++) {
-            PacketUtil.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(false, mc.player.horizontalCollision));
-        }
-    }
-
-    private void syncClientPosition(Vec3d base) {
-        if (mc.player == null) return;
-        Vec3d syncPos = randomOffset.getValue() ? getRandomOffset(base) : base;
-        if (!syncPos.equals(base)) {
-            sendMovePacket(syncPos, null, isOnGroundAt(syncPos));
-            recordPoint(syncPos);
-        }
-        mc.player.setPosition(syncPos.x, syncPos.y, syncPos.z);
-    }
-
-    private Vec3d getRandomOffset(Vec3d base) {
-        double xz = offsetXZ.getValue();
-        double y = offsetY.getValue();
-        if (xz <= 0.0 && y <= 0.0) {
-            return base;
-        }
-
-        List<Vec3d> offsets = new ArrayList<>();
-        offsets.add(base.add(xz, y, 0.0));
-        offsets.add(base.add(-xz, y, 0.0));
-        offsets.add(base.add(0.0, y, xz));
-        offsets.add(base.add(0.0, y, -xz));
-        offsets.add(base.add(xz, y, xz));
-        offsets.add(base.add(-xz, y, -xz));
-        offsets.add(base.add(xz, y, -xz));
-        offsets.add(base.add(-xz, y, xz));
-        Collections.shuffle(offsets);
-
-        for (Vec3d offset : offsets) {
-            if (!isInvalidPosition(offset)) {
-                return offset;
-            }
-        }
-
-        Vec3d verticalOffset = base.add(0.0, y, 0.0);
-        return isInvalidPosition(verticalOffset) ? base : verticalOffset;
-    }
-
     private void handleLagback() {
-
         Disabler disabler = getModule(Disabler.class);
         if (disabler != null && disabler.isEnabled()) {
             disabler.setEnabled(false);
-            Util.log("[TpAura] Lagback, disabling Disabler.");
+            Util.log("[TpAuraPlus] Lagback, disabling Disabler.");
         }
 
         if (phase != Phase.IDLE) {
@@ -594,7 +604,7 @@ public final class TpAura extends Module {
     private void updateTarget() {
         if (isValidChaseTarget(chaseTarget)) {
             target = chaseTarget;
-            setSuffix(target == null ? "" : priority.getValue());
+            setSuffix(priority.getValue());
             return;
         }
 
@@ -645,7 +655,7 @@ public final class TpAura extends Module {
             return true;
         }
 
-        Box box = mc.player.getBoundingBox().offset(pos.subtract(new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ())));
+        Box box = mc.player.getBoundingBox().offset(pos.subtract(getClientPos()));
         BlockPos min = BlockPos.ofFloored(box.minX, box.minY, box.minZ);
         BlockPos max = BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ);
 
@@ -672,10 +682,6 @@ public final class TpAura extends Module {
         return null;
     }
 
-    private boolean isHoldingSword() {
-        return mc.player != null && mc.player.getMainHandStack().isIn(ItemTags.SWORDS);
-    }
-
     private void recordPoint(Vec3d pos) {
         if (visualPoints.size() >= 10) {
             visualPoints.remove(0);
@@ -697,31 +703,29 @@ public final class TpAura extends Module {
         for (int i = 0; i < visualPoints.size(); i++) {
             VisualPoint point = visualPoints.get(i);
             float alpha = getAlpha(point.time());
-            if (alpha <= 0.01f) continue;
+            if (alpha <= 0.01f || !renderTrail.getValue()) continue;
 
-            if (renderPos.getValue()) {
-                float distanceAlpha = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).distanceTo(point.pos()) < 6.0 ? 0.4f : 1.0f;
-                Render3D.drawOutlinedBox(
-                        event.getMatrixStack(),
-                        getPointBox(point.pos()),
-                        0.02,
-                        ColorUtil.applyAlpha(renderPosColor.getValue().getRGB(), Math.round(255.0f * alpha * distanceAlpha)),
-                        false
-                );
-            }
-
-            if (renderTrail.getValue() && i > 0) {
+            if (i > 0) {
                 VisualPoint prevPoint = visualPoints.get(i - 1);
                 float lineAlpha = Math.min(alpha, getAlpha(prevPoint.time()));
                 if (lineAlpha > 0.01f) {
-                    renderTrailSegment(event, prevPoint.pos(), point.pos(), lineAlpha);
+                    int color = ColorUtil.applyAlpha(renderTrailColor.getValue().getRGB(), Math.round(255.0f * lineAlpha));
+                    int steps = Math.max(2, (int) Math.ceil(point.pos().distanceTo(prevPoint.pos()) / 0.35));
+                    for (int s = 0; s <= steps; s++) {
+                        Vec3d mid = prevPoint.pos().lerp(point.pos(), (double) s / steps);
+                        double pad = 0.035;
+                        Render3D.drawBox(event.getMatrixStack(), new Box(
+                                mid.x - pad, mid.y - pad, mid.z - pad,
+                                mid.x + pad, mid.y + pad, mid.z + pad
+                        ), color, false);
+                    }
                 }
             }
         }
     }
 
     private void updateHighlightBounds(Render3DEvent event) {
-        if (!highlightTarget.is("2D") || target == null) {
+        if (target == null) {
             highlightBounds = null;
             return;
         }
@@ -748,25 +752,6 @@ public final class TpAura extends Module {
     private float getAlpha(long time) {
         float progress = Math.max(0.0f, 1.0f - (System.currentTimeMillis() - time) / (float) VISUAL_FADE_MS);
         return progress * progress;
-    }
-
-    private void renderTrailSegment(Render3DEvent event, Vec3d from, Vec3d to, float alpha) {
-        int color = ColorUtil.applyAlpha(renderTrailColor.getValue().getRGB(), Math.round(255.0f * alpha));
-        int steps = Math.max(2, (int) Math.ceil(from.distanceTo(to) / 0.35));
-
-        for (int i = 0; i <= steps; i++) {
-            Vec3d point = from.lerp(to, (double) i / steps);
-            double pad = 0.035;
-            Render3D.drawBox(event.getMatrixStack(), new Box(
-                    point.x - pad, point.y - pad, point.z - pad,
-                    point.x + pad, point.y + pad, point.z + pad
-            ), color, false);
-        }
-    }
-
-    private Box getPointBox(Vec3d pos) {
-        double halfWidth = renderPosScale.getValue() / 2.0;
-        return new Box(pos.x - halfWidth, pos.y, pos.z - halfWidth, pos.x + halfWidth, pos.y + 1.8, pos.z + halfWidth);
     }
 
     private record VisualPoint(Vec3d pos, long time) {}

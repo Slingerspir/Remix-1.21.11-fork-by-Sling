@@ -11,12 +11,14 @@ import cn.remix.module.impl.exploits.ResetVL;
 import cn.remix.module.impl.misc.AntiCheatDetect;
 import cn.remix.module.impl.misc.BetterChat;
 import cn.remix.module.impl.misc.BetterTab;
+import cn.remix.module.impl.misc.ClientSpoof;
 import cn.remix.module.impl.misc.NameProtect;
 import cn.remix.module.impl.move.*;
 import cn.remix.module.impl.player.*;
 import cn.remix.module.impl.render.*;
 import cn.remix.module.impl.world.Clutch;
 import cn.remix.module.impl.world.Scaffold;
+import cn.remix.module.impl.world.Tas;
 import cn.remix.module.impl.world.Timer;
 import cn.remix.module.impl.world.WorldTweaks;
 import cn.remix.module.value.Value;
@@ -109,9 +111,13 @@ public class ModuleManager implements IMinecraft {
                 new BetterTab(),
                 new AirJump(),
                 new AntiCheatDetect(),
+                new ClientSpoof(),
                 new FlyPlus(),
                 new Timer(),
-                new NoFall2()
+                new Tas(),
+                new TpAuraPlus(),
+                new NoFall2(),
+                new DynamicIsland()
         );
 
         sortModules();

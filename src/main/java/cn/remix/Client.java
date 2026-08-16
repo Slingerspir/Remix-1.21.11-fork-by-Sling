@@ -16,8 +16,8 @@ public class Client implements IMinecraft {
     public static Client instance;
     public static Logger logger;
 
-    public static String name = "Myau";
-    public static String version = "v1.9.0";
+    public static String name = "Remix";
+    public static String version = "v1.0.0";
 
     private EventManager eventManager;
     private ModuleManager moduleManager;
@@ -32,8 +32,6 @@ public class Client implements IMinecraft {
     private ClickGuiScreen clickGuiScreen;
 
     public void init() {
-
-        // Why did you do that?
         eventManager = new EventManager();
         moduleManager = new ModuleManager();
         commandManager = new CommandManager();
@@ -45,6 +43,15 @@ public class Client implements IMinecraft {
         packetManager = new PacketManager();
         indicatorManager = new IndicatorManager();
         clickGuiScreen = new ClickGuiScreen();
+
+        // ✅ 设置窗口标题（直接可用）
+        if (mc.getWindow() != null) {
+            mc.getWindow().setTitle("Remix Client Fork By Sling v" + version);
+            logger.info("Window title set to: Remix Client " + version);
+        }
+
+        // ❌ 图标无法直接设置，需要通过 Mixin 或资源包
+        // 详见下方 MixinWindow.java
     }
 
     public void shutdown() {

@@ -2,6 +2,7 @@ package cn.remix.module.impl.world;
 
 import cn.remix.event.base.annotation.EventTarget;
 import cn.remix.event.impl.TickEvent;
+import cn.remix.management.TasManager;
 import cn.remix.module.Category;
 import cn.remix.module.Module;
 import cn.remix.module.value.impl.BoolValue;
@@ -37,9 +38,6 @@ public class Timer extends Module {
     private int boostCapable = 0;
     private static float currentTimerSpeed = 1.0f;
 
-    private long lastTime = 0;
-    private long targetTime = 0;
-
     public Timer() {
         super("Timer", Category.World);
     }
@@ -52,8 +50,7 @@ public class Timer extends Module {
         pulseTicksLeft = 0;
         boostCapable = 0;
         currentTimerSpeed = 1.0f;
-        lastTime = System.currentTimeMillis();
-        targetTime = 0;
+        TasManager.resetTimer();
         Util.log("[Timer] Enabled - Mode: " + mode.getValue());
     }
 
@@ -61,6 +58,7 @@ public class Timer extends Module {
     public void onDisable() {
         super.onDisable();
         currentTimerSpeed = 1.0f;
+        TasManager.resetTimer();
         Util.log("[Timer] Disabled - Reset timer to 1.0x");
     }
 
@@ -151,31 +149,13 @@ public class Timer extends Module {
         return boostSpeedBoost.getValue().floatValue();
     }
 
-
     private void applyTimerSpeed(float speed) {
         if (speed <= 0.01f) {
             speed = 0.01f;
         }
-
-        long currentTime = System.currentTimeMillis();
-        long elapsed = currentTime - lastTime;
-
-        long normalTickTime = 50;
-
-        long adjustedTickTime = (long) (normalTickTime / speed);
-
-        if (elapsed < adjustedTickTime && speed > 1.0f) {
-            try {
-                long sleepTime = Math.max(0, adjustedTickTime - elapsed);
-                if (sleepTime > 0 && sleepTime < 50) {
-                    Thread.sleep(sleepTime);
-                }
-            } catch (InterruptedException ignored) {}
-        }
-
-        lastTime = System.currentTimeMillis();
+        currentTimerSpeed = speed;
+        TasManager.setTimerMultiplier(speed);
     }
-
 
     private boolean isMoving() {
         if (mc.player == null) return false;
@@ -195,14 +175,12 @@ public class Timer extends Module {
         }
     }
 
-
     public static float getTimerSpeed() {
-        return currentTimerSpeed;
+        return TasManager.getTimerMultiplier();
     }
 
     public static boolean isTimerActive() {
-        return currentTimerSpeed != 1.0f;
+        return TasManager.getTimerMultiplier() != 1.0f;
     }
-
 
 }

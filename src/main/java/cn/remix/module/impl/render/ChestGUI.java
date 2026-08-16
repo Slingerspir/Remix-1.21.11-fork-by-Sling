@@ -20,6 +20,7 @@ import net.minecraft.block.ChestBlock;
 import net.minecraft.block.EnderChestBlock;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -30,15 +31,12 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
-@SuppressWarnings({"unused", "SpellCheckingInspection"})
 public final class ChestGUI extends Module {
 
+    // 显示选项
     private final BoolValue chest = new BoolValue("Chest", true);
     private final BoolValue enderChest = new BoolValue("Ender Chest", true);
     private final ModeValue disableVanillaGui = new ModeValue("Disable Vanilla Gui", "Chest Stealer", "Off", "Chest Stealer", "On");
@@ -51,15 +49,16 @@ public final class ChestGUI extends Module {
     private final BoolValue drawSignWhenClosed = new BoolValue("Draw Sign When Closed", true);
     private final BoolValue excludeShop = new BoolValue("Exclude Shop", true);
 
+    // 布局
     private final NumberValue slotGap = new NumberValue("Slot Gap", 2, -4, 12, 1);
     private final NumberValue hudScaleOpen = new NumberValue("HUD Scale Open", 1.0f, 0.2f, 3.0f, 0.1f);
     private final NumberValue hudScaleClosed = new NumberValue("HUD Scale Closed", 1.0f, 0.2f, 3.0f, 0.1f);
     private final NumberValue xOffset = new NumberValue("HUD X Offset", 0, -200, 200, 1);
     private final NumberValue yOffset = new NumberValue("HUD Y Offset", 0, -200, 200, 1);
-    private final NumberValue cornerRadius = new NumberValue("Corner Radius", 12, 0, 30, 1);
     private final ColorValue accentColor = new ColorValue("Accent Color", new Color(100, 150, 255));
     private final BoolValue showItemCounts = new BoolValue("Show Item Counts", true);
 
+    // 数据
     private final Map<BlockPos, ChestSnapshot> snapshots = new HashMap<>();
     private final Map<BlockPos, ScreenPoint> screenPoints = new HashMap<>();
     private final Map<BlockPos, Float> hoverAnimations = new HashMap<>();
@@ -118,11 +117,25 @@ public final class ChestGUI extends Module {
             if (detected != null) currentChest = detected;
             if (currentChest != null && isEnabledBlock(currentChest)) {
                 GenericContainerScreenHandler handler = screen.getScreenHandler();
+
+                // ✅ 正确获取箱子物品
+                Inventory inventory = handler.getInventory();
+                int containerSize = inventory.size();
                 List<ItemStack> items = new ArrayList<>();
-                for (int i = 0; i < handler.getInventory().size(); i++) {
-                    items.add(handler.getInventory().getStack(i).copy());
+                for (int i = 0; i < containerSize; i++) {
+                    items.add(inventory.getStack(i).copy());
                 }
-                snapshots.put(currentChest, new ChestSnapshot(items, screen.getTitle().getString(), now));
+
+                // 获取标题
+                String title = screen.getTitle().getString();
+                if (title.isEmpty() || title.equals("Chest") || title.equals("container.chest")) {
+                    int rows = handler.getRows();
+                    if (rows == 3) title = "Chest";
+                    else if (rows == 6) title = "Large Chest";
+                    else title = "Container (" + rows + "x9)";
+                }
+
+                snapshots.put(currentChest, new ChestSnapshot(items, title, now));
                 pendingChest = currentChest;
                 pendingChestTime = now;
             }
@@ -214,15 +227,23 @@ public final class ChestGUI extends Module {
         }
     }
 
-
     private void drawContents(DrawContext context, ChestSnapshot snapshot, ScreenPoint point, boolean open, float alpha, float hover) {
         int count = snapshot.items().size();
         int rows = Math.max(1, (count + 8) / 9);
-        float gap = slotGap.getValue();
+        float gap = Math.max(0, slotGap.getValue());
         float cell = 16.0f + gap;
-        float scale = open ? hudScaleOpen.getValue() : hudScaleClosed.getValue();
         float width = 9 * cell - gap + 20.0f;
-        float height = rows * cell - gap + 40.0f;
+        float height = rows * cell - gap + 50.0f;
+
+        // 自动适配屏幕：面板超出窗口时自动缩小，保证所有物品（含双箱 54 格）完整可见
+        float scale = open ? hudScaleOpen.getValue() : hudScaleClosed.getValue();
+        float maxFit = Math.min(
+                (context.getScaledWindowWidth() - 20.0f) / width,
+                (context.getScaledWindowHeight() - 20.0f) / height
+        );
+        if (maxFit > 0.05f) {
+            scale = Math.min(scale, maxFit);
+        }
 
         float x = point.x() + xOffset.getValue() - width * scale / 2.0f;
         float y = point.y() + yOffset.getValue() - height * scale - 12.0f;
@@ -243,69 +264,85 @@ public final class ChestGUI extends Module {
         int alphaInt = Math.round(220 * alpha);
         int accent = accentColor.getValue().getRGB();
 
-        drawFrostedGlass(context, width, height, cornerRadius.getValue().floatValue(), alphaInt, accent);
-
-        float glowAlpha = 0.3f + 0.7f * (float) Math.sin(System.currentTimeMillis() / 1500.0 + count);
-        drawGlowBorder(context, width, height, cornerRadius.getValue().floatValue(), accent, glowAlpha * alpha);
-
+        drawBackground(context, width, height, alphaInt, accent);
         drawTitleBar(context, snapshot, width, alphaInt, accent);
-
-        drawItemGrid(context, snapshot, width, gap, cell, alphaInt);
-
-        drawFooter(context, snapshot, width, alphaInt, accent);
+        int hoveredSlot = drawItemGrid(context, snapshot, width, gap, cell, alphaInt, x, y, scale);
+        drawFooter(context, snapshot, width, alphaInt);
 
         context.getMatrices().popMatrix();
+
+        drawHoverTooltip(context, snapshot, hoveredSlot, x, y, scale);
     }
 
-    private void drawFrostedGlass(DrawContext context, float width, float height, float radius, int alpha, int accent) {
-        int bg1 = new Color(20, 25, 40, Math.round(alpha * 0.6f)).getRGB();
-        int bg2 = new Color(30, 35, 55, Math.round(alpha * 0.4f)).getRGB();
+    private void drawBackground(DrawContext context, float width, float height, int alpha, int accent) {
+        int bg = new Color(20, 25, 40, Math.round(alpha * 0.85f)).getRGB();
+        Render2D.drawRect(context, 0, 0, width, height, bg);
 
-        Render2D.drawRoundedRect(context, 0, 0, width, height, radius, bg1);
-        Render2D.drawRoundedRect(context, 2, 2, width - 4, height - 4, radius - 1, bg2);
+        int bgInner = new Color(30, 35, 55, Math.round(alpha * 0.5f)).getRGB();
+        Render2D.drawRect(context, 2, 2, width - 4, height - 4, bgInner);
 
-        float highlightY = radius * 0.3f;
-        int highlightColor = new Color(255, 255, 255, Math.round(alpha * 0.15f)).getRGB();
-        Render2D.drawRoundedRect(context, 8, highlightY, width - 16, 1.5f, 0, highlightColor);
-        int accentColorInt = new Color(accent).getRGB();
-        Render2D.drawRoundedRect(context, 0, height - 2, width, 2, 0, accentColorInt);
-    }
+        int highlight = new Color(255, 255, 255, Math.round(alpha * 0.12f)).getRGB();
+        Render2D.drawRect(context, 4, 3, width - 8, 1.5f, highlight);
 
-    private void drawGlowBorder(DrawContext context, float width, float height, float radius, int color, float alpha) {
-        int colorWithAlpha = ColorUtil.applyAlpha(color, Math.round(255 * alpha * 0.15f));
-        Render2D.drawRoundedRect(context, 0, 0, width, height, radius, colorWithAlpha);
+        Render2D.drawRect(context, 0, height - 2, width, 2, ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.6f)));
+        Render2D.drawRect(context, 0, 0, 2, height, ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.3f)));
+        Render2D.drawRect(context, width - 2, 0, 2, height, ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.15f)));
+
+        // 顶部强调条
+        int topBar = ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.55f));
+        Render2D.drawRect(context, 0, 0, width, 2.5f, topBar);
     }
 
     private void drawTitleBar(DrawContext context, ChestSnapshot snapshot, float width, int alpha, int accent) {
         String title = snapshot.title();
         if (title.isEmpty()) title = "Chest";
 
-        String display = title + " (" + snapshot.items().size() + " items)";
+        int count = snapshot.items().size();
+        int nonEmpty = (int) snapshot.items().stream().filter(stack -> !stack.isEmpty()).count();
+        String display = title + "  ·  " + nonEmpty + "/" + count;
         int color = new Color(255, 255, 255, Math.round(255 * (alpha / 255f))).getRGB();
 
         float titleX = 12;
         float titleY = 10;
         context.drawTextWithShadow(mc.textRenderer, display, (int) titleX, (int) titleY, color);
 
-        float lineY = 28;
         int lineColor = ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.4f));
-        Render2D.drawRoundedRect(context, 10, lineY, width - 20, 1.5f, 0, lineColor);
-        int lineColor2 = new Color(255, 255, 255, Math.round(255 * alpha * 0.1f)).getRGB();
-        Render2D.drawRoundedRect(context, 10, lineY + 2, width - 20, 0.5f, 0, lineColor2);
+        Render2D.drawRect(context, 10, 30, width - 20, 1.5f, lineColor);
 
-        float closeX = width - 20;
+        int shadowColor = new Color(255, 255, 255, Math.round(255 * alpha * 0.06f)).getRGB();
+        Render2D.drawRect(context, 10, 32, width - 20, 0.5f, shadowColor);
+
+        float closeX = width - 22;
         float closeY = 8;
         int closeBg = new Color(255, 50, 50, Math.round(100 * alpha)).getRGB();
-        Render2D.drawRoundedRect(context, closeX, closeY, 12, 12, 6, closeBg);
+        Render2D.drawRect(context, closeX, closeY, 14, 14, closeBg);
         int closeColor = new Color(255, 255, 255, Math.round(200 * alpha)).getRGB();
         context.drawTextWithShadow(mc.textRenderer, "x", (int) closeX + 4, (int) closeY + 1, closeColor);
     }
 
-    private void drawItemGrid(DrawContext context, ChestSnapshot snapshot, float width, float gap, float cell, int alpha) {
+    private int drawItemGrid(DrawContext context, ChestSnapshot snapshot, float width, float gap, float cell, int alpha,
+                             float panelX, float panelY, float scale) {
         int count = snapshot.items().size();
         int cols = 9;
         float startX = 10;
-        float startY = 34;
+        float startY = 38;
+        cell = Math.max(16.5f, cell);
+
+        int rows = (count + cols - 1) / cols;
+        if (rows < 1) rows = 1;
+
+        float usedWidth = cols * cell - gap;
+        float usedHeight = rows * cell - gap;
+
+        int slotAreaBg = new Color(15, 20, 30, Math.round(60 * alpha / 255f)).getRGB();
+        Render2D.drawRect(context, startX - 2, startY - 2, usedWidth + 4, usedHeight + 4, slotAreaBg);
+
+        int gridBorder = new Color(50, 60, 80, Math.round(40 * alpha / 255f)).getRGB();
+        Render2D.drawOutline(context, startX - 1, startY - 1, usedWidth + 2, usedHeight + 2, 0.5f, gridBorder);
+
+        int hoveredSlot = -1;
+        float mouseX = (float) mc.mouse.getScaledX(mc.getWindow());
+        float mouseY = (float) mc.mouse.getScaledY(mc.getWindow());
 
         for (int i = 0; i < count; i++) {
             ItemStack stack = snapshot.items().get(i);
@@ -316,9 +353,15 @@ public final class ChestGUI extends Module {
             float itemY = startY + row * cell;
 
             int slotBg = new Color(40, 45, 65, Math.round(120 * alpha / 255f)).getRGB();
+            Render2D.drawRect(context, itemX, itemY, cell, cell, slotBg);
+
             int slotBorder = new Color(60, 70, 100, Math.round(80 * alpha / 255f)).getRGB();
-            Render2D.drawRoundedRect(context, itemX - 1, itemY - 1, cell + 2, cell + 2, 4, slotBg);
-            Render2D.drawRoundedRect(context, itemX, itemY, cell, cell, 3, slotBorder);
+            Render2D.drawOutline(context, itemX, itemY, cell, cell, 0.5f, slotBorder);
+
+            if (stack.isEmpty()) {
+                int emptyGlow = new Color(60, 70, 100, Math.round(30 * alpha / 255f)).getRGB();
+                Render2D.drawRect(context, itemX + 2, itemY + 2, cell - 4, cell - 4, emptyGlow);
+            }
 
             if (!stack.isEmpty()) {
                 context.drawItem(stack, Math.round(itemX + 2), Math.round(itemY + 2));
@@ -330,30 +373,92 @@ public final class ChestGUI extends Module {
                             Math.round(itemX + cell - 4 - mc.textRenderer.getWidth(countStr)),
                             Math.round(itemY + cell - 10), countColor);
                 }
-            }
 
-            float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 1000.0 + i);
-            if (pulse > 0.8f && !stack.isEmpty()) {
-                int glow = new Color(255, 255, 255, Math.round(30 * alpha / 255f * (pulse - 0.8f) * 5)).getRGB();
-                Render2D.drawRoundedRect(context, itemX, itemY, cell, cell, 3, glow);
+                float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 1000.0 + i);
+                if (pulse > 0.85f && stack.getRarity() != null) {
+                    int glow = new Color(255, 255, 255, Math.round(20 * alpha / 255f * (pulse - 0.85f) * 6.67f)).getRGB();
+                    Render2D.drawRect(context, itemX, itemY, cell, cell, glow);
+                }
+
+                // 悬浮高亮
+                float slotScreenX = panelX + (itemX + 2) * scale;
+                float slotScreenY = panelY + (itemY + 2) * scale;
+                float slotScreenSize = 16.0f * scale;
+                if (mouseX >= slotScreenX && mouseX <= slotScreenX + slotScreenSize
+                        && mouseY >= slotScreenY && mouseY <= slotScreenY + slotScreenSize) {
+                    hoveredSlot = i;
+                    int hoverColor = ColorUtil.applyAlpha(accentColor.getValue().getRGB(), Math.round(120 * alpha / 255f));
+                    Render2D.drawOutline(context, itemX - 1, itemY - 1, cell + 2, cell + 2, 1.2f, hoverColor);
+                }
             }
         }
+
+        // 垂直分割线
+        for (int col = 0; col <= cols; col++) {
+            if (col == 0 || col == cols) continue;
+            float lineX = startX + col * cell - gap / 2;
+            int lineColor = new Color(50, 60, 80, Math.round(30 * alpha / 255f)).getRGB();
+            Render2D.drawRect(context, lineX, startY, 0.5f, usedHeight, lineColor);
+        }
+
+        // 水平分割线
+        for (int row = 0; row <= rows; row++) {
+            if (row == 0 || row == rows) continue;
+            float lineY = startY + row * cell - gap / 2;
+            int lineColor = new Color(50, 60, 80, Math.round(30 * alpha / 255f)).getRGB();
+            Render2D.drawRect(context, startX, lineY, usedWidth, 0.5f, lineColor);
+        }
+
+        int bottomShadow = new Color(0, 0, 0, Math.round(40 * alpha / 255f)).getRGB();
+        Render2D.drawRect(context, startX - 2, startY + usedHeight, usedWidth + 4, 3, bottomShadow);
+        return hoveredSlot;
     }
 
-    private void drawFooter(DrawContext context, ChestSnapshot snapshot, float width, int alpha, int accent) {
-        int rows = (snapshot.items().size() + 8) / 9;
-        float footerY = 34 + rows * (16 + slotGap.getValue());
+    private void drawHoverTooltip(DrawContext context, ChestSnapshot snapshot, int slot, float panelX, float panelY, float scale) {
+        if (slot < 0 || slot >= snapshot.items().size()) return;
+        ItemStack stack = snapshot.items().get(slot);
+        if (stack.isEmpty()) return;
 
-        int lineColor = new Color(255, 255, 255, Math.round(50 * alpha / 255f)).getRGB();
-        Render2D.drawRoundedRect(context, 10, footerY - 4, width - 20, 1, 0, lineColor);
+        String name = stack.getName().getString();
+        String text = stack.getCount() > 1 ? name + " x" + stack.getCount() : name;
+        float mouseX = (float) mc.mouse.getScaledX(mc.getWindow());
+        float mouseY = (float) mc.mouse.getScaledY(mc.getWindow());
+        int textWidth = mc.textRenderer.getWidth(text);
 
-        String stats = snapshot.items().size() + " items";
+        float tooltipX = MathHelper.clamp(mouseX + 10.0f, 4.0f, context.getScaledWindowWidth() - textWidth - 14.0f);
+        float tooltipY = MathHelper.clamp(mouseY + 10.0f, 4.0f, context.getScaledWindowHeight() - 24.0f);
+
+        int bg = new Color(15, 18, 28, 230).getRGB();
+        Render2D.drawRect(context, tooltipX - 4, tooltipY - 3, textWidth + 8, 15, bg);
+        Render2D.drawOutline(context, tooltipX - 4, tooltipY - 3, textWidth + 8, 15, 1.0f,
+                ColorUtil.applyAlpha(accentColor.getValue().getRGB(), 160));
+        context.drawTextWithShadow(mc.textRenderer, text, Math.round(tooltipX), Math.round(tooltipY), 0xFFFFFFFF);
+    }
+
+    private void drawFooter(DrawContext context, ChestSnapshot snapshot, float width, int alpha) {
+        int count = snapshot.items().size();
+        int cols = 9;
+        int rows = (count + cols - 1) / cols;
+        if (rows < 1) rows = 1;
+        float gap = slotGap.getValue();
+        float cell = 16.0f + gap;
+        float footerY = 38 + rows * cell - gap + 4;
+
+        int lineColor = new Color(255, 255, 255, Math.round(40 * alpha / 255f)).getRGB();
+        Render2D.drawRect(context, 10, footerY, width - 20, 1, lineColor);
+
+        float statsY = footerY + 8;
+
+        String stats = count + " items";
         int color = new Color(200, 210, 230, Math.round(180 * alpha / 255f)).getRGB();
-        float statsX = 12;
-        float statsY = footerY + 6;
-        context.drawTextWithShadow(mc.textRenderer, stats, (int) statsX, (int) statsY, color);
+        context.drawTextWithShadow(mc.textRenderer, stats, 12, (int) statsY, color);
 
-        String tip = "Click to take";
+        String type = count > 27 ? "Double Chest" : "Single Chest";
+        int typeColor = new Color(160, 170, 190, Math.round(120 * alpha / 255f)).getRGB();
+        float typeX = width / 2 - mc.textRenderer.getWidth(type) / 2f;
+        context.drawTextWithShadow(mc.textRenderer, type, (int) typeX, (int) statsY, typeColor);
+
+        String tip = "Hover for details";
         int tipColor = new Color(180, 190, 210, Math.round(150 * alpha / 255f)).getRGB();
         float tipX = width - 12 - mc.textRenderer.getWidth(tip);
         context.drawTextWithShadow(mc.textRenderer, tip, (int) tipX, (int) statsY, tipColor);
@@ -371,19 +476,21 @@ public final class ChestGUI extends Module {
         int alphaInt = Math.round(170 * alpha);
 
         int bg = new Color(20, 25, 40, alphaInt).getRGB();
-        Render2D.drawRoundedRect(context, -10, -10, 20, 20, 10, bg);
+        Render2D.drawRect(context, -12, -12, 24, 24, bg);
+
+        int border = new Color(100, 150, 255, Math.round(120 * alpha)).getRGB();
+        Render2D.drawOutline(context, -12, -12, 24, 24, 1.0f, border);
 
         float pulse = 0.6f + 0.4f * (float) Math.sin(System.currentTimeMillis() / 800.0);
         int pulseAlpha = Math.round(80 * alpha * pulse);
         int glow = new Color(100, 150, 255, pulseAlpha).getRGB();
-        Render2D.drawRoundedRect(context, -14, -14, 28, 28, 14, glow);
+        Render2D.drawRect(context, -14, -14, 28, 28, glow);
 
         int textColor = new Color(255, 255, 255, Math.round(255 * alpha)).getRGB();
         context.drawCenteredTextWithShadow(mc.textRenderer, "C", 0, -6, textColor);
 
         context.getMatrices().popMatrix();
     }
-
 
     private float getVerticalOffset(ChestSnapshot snapshot, boolean open, float hover) {
         float baseOffset;
@@ -454,9 +561,10 @@ public final class ChestGUI extends Module {
     private boolean isStealing() {
         if (!(mc.currentScreen instanceof GenericContainerScreen container)) return false;
         GenericContainerScreenHandler handler = container.getScreenHandler();
-        for (int i = 0; i < handler.getInventory().size(); i++) {
-            Slot slot = handler.getSlot(i);
-            if (slot != null && slot.hasStack()) {
+        Inventory inventory = handler.getInventory();
+        int containerSize = inventory.size();
+        for (int i = 0; i < containerSize; i++) {
+            if (!inventory.getStack(i).isEmpty()) {
                 return true;
             }
         }
@@ -473,7 +581,6 @@ public final class ChestGUI extends Module {
         wasOpen = false;
         openedAt = closedAt = 0L;
     }
-
 
     private record ChestSnapshot(List<ItemStack> items, String title, long updatedAt) {}
 

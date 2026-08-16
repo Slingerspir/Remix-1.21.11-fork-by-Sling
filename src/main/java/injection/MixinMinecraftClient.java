@@ -3,6 +3,7 @@ package injection;
 import cn.remix.Client;
 import cn.remix.event.impl.TickEvent;
 import cn.remix.event.impl.WorldEvent;
+import cn.remix.management.TasManager;
 import cn.remix.module.impl.player.FastUse;
 import cn.remix.util.IMinecraft;
 import cn.remix.util.Util;
@@ -15,10 +16,12 @@ import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MinecraftClient.class)
 public abstract class MixinMinecraftClient implements IMinecraft {
@@ -27,6 +30,11 @@ public abstract class MixinMinecraftClient implements IMinecraft {
     public GameOptions options;
     @Shadow
     private int itemUseCooldown;
+    @Shadow
+    private int attackCooldown;
+
+    @Unique
+    private int tasActionTicks;
 
     @Inject(method = "<init>", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MinecraftClient;instance:Lnet/minecraft/client/MinecraftClient;", shift = At.Shift.AFTER, opcode = Opcodes.PUTSTATIC))
     private void preInit(CallbackInfo ci) {
@@ -57,6 +65,26 @@ public abstract class MixinMinecraftClient implements IMinecraft {
         }
 
         instance.getEventManager().call(new TickEvent());
+
+        if (TasManager.isTasActive()) {
+            tasActionTicks++;
+            if (!TasManager.shouldRunAction(tasActionTicks)) {
+                if (attackCooldown > 0) attackCooldown++;
+            }
+        }
+    }
+
+    @Inject(method = "getTargetMillisPerTick", at = @At("HEAD"), cancellable = true)
+    private void onGetTargetMillisPerTick(float tickTime, CallbackInfoReturnable<Float> cir) {
+        if (mc.world != null && TasManager.isTickRateActive()) {
+            float multiplier = TasManager.getTickMultiplier();
+            if (multiplier <= 0.0f) {
+
+                cir.setReturnValue(Float.MAX_VALUE);
+            } else {
+                cir.setReturnValue(tickTime / multiplier);
+            }
+        }
     }
 
     @Inject(method = "handleInputEvents", at = @At("TAIL"))

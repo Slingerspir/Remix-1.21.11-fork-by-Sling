@@ -25,6 +25,14 @@ public abstract class MixinClientConnection implements IMinecraft {
 
         if (event.isCancelled()) {
             ci.cancel();
+            return;
+        }
+
+        Packet<?> replaced = event.getPacket();
+        if (replaced != packet) {
+            ci.cancel();
+            PacketUtil.getPackets().add(replaced);
+            ((ClientConnection) (Object) this).send(replaced);
         }
     }
 

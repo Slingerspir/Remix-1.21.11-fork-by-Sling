@@ -6,7 +6,9 @@ import cn.remix.ui.screen.impl.proxy.ProxyScreen;
 import cn.remix.ui.screen.impl.token.TokenScreen;
 import cn.remix.ui.screen.util.AdaptiveButton;
 import cn.remix.util.render.Render2D;
+import injection.MixinTitleScreen;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
@@ -34,13 +36,11 @@ public class MainMenu extends AbstractScreen {
         float buttonHeight = 26f;
         float startY = centerY + 20f;
 
-        AdaptiveButton single = new AdaptiveButton("Singleplayer", () -> {
-            mc.setScreen(new OwnSelectWorldScreen(this));
-        });
+        AdaptiveButton single = new AdaptiveButton("Singleplayer", () -> mc.setScreen(new OwnSelectWorldScreen(this)));
         single.setBounds(centerX - buttonWidth / 2, startY, buttonWidth, buttonHeight);
         buttons.add(single);
 
-        AdaptiveButton multi = new AdaptiveButton("Multiplayer", () -> mc.setScreen(new OwnMultiplayerScreen(this)));
+        AdaptiveButton multi = new AdaptiveButton("Multiplayer", () -> mc.setScreen(new MultiplayerScreen(this)));
         multi.setBounds(centerX - buttonWidth / 2, startY + gap, buttonWidth, buttonHeight);
         buttons.add(multi);
 
@@ -60,6 +60,14 @@ public class MainMenu extends AbstractScreen {
         AdaptiveButton quit = new AdaptiveButton("Quit", mc::close);
         quit.setBounds(centerX - buttonWidth / 2, startY + gap * 4, buttonWidth, buttonHeight);
         buttons.add(quit);
+
+        // 左下角按钮
+        AdaptiveButton vanillaBtn = new AdaptiveButton("Vanilla Menu", () -> {
+            System.setProperty("remix.first_launch", "false");
+            mc.setScreen(new TitleScreen());
+        });
+        vanillaBtn.setBounds(10, this.height - 36, 100, 26);
+        buttons.add(vanillaBtn);
     }
 
     @Override

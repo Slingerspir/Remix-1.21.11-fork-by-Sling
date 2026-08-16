@@ -20,6 +20,7 @@
     "MixinHeldItemRenderer",
     "MixinInGameHud",
     "MixinItemEntityRenderer",
+    "MixinItemCooldownManager",
     "MixinKeyboard",
     "MixinKeyboardInput",
     "MixinLivingEntity",
@@ -27,6 +28,8 @@
     "MixinMinecraftClient",
     "MixinNetworkThreadUtils",
     "MixinPlayerEntity",
+    "MixinServerPlayerInteractionManager",
+    "MixinSoundSystem",
     "MixinTitleScreen",
     "accessor.ClientPlayerEntityAccessor",
     "accessor.ClientWorldAccessor",
@@ -34,7 +37,8 @@
     "accessor.EntityVelocityUpdateS2CPacketAccessor",
     "accessor.MinecraftClientAccessor",
     "accessor.NativeImageAccessor",
-    "accessor.PlayerMoveC2SPacketAccessor"
+    "accessor.PlayerMoveC2SPacketAccessor",
+    "MixinWindowIcon"
   ],
   "injectors": {
     "defaultRequire": 1
