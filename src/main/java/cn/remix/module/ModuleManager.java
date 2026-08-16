@@ -61,6 +61,7 @@ public class ModuleManager implements IMinecraft {
                 new BlockSelection(),
                 new ClipHUD(),
                 new Criticals(),
+                new TpauraRise(),
                 new NoSlowDown(),
                 new NoFall(),
                 new AntiVoid(),

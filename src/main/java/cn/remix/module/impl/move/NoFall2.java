@@ -19,7 +19,7 @@ public final class NoFall2 extends Module {
     private boolean triggered = false;
 
     public NoFall2() {
-        super("NoFall", Category.Move);
+        super("NoFall2", Category.Move);
     }
 
     @Override
