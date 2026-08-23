@@ -3,6 +3,7 @@ package cn.remix.module.impl.render.targethud;
 import cn.remix.ui.font.TrueTypeFont;
 import cn.remix.util.IMinecraft;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
@@ -23,12 +24,16 @@ public class Exhibition implements IMinecraft {
         int midGray = new Color(45, 45, 45).getRGB();
         int bgColor = new Color(15, 15, 15).getRGB();
 
-        Render2D.drawRect(context, x, y, width, height, blackBorder);
-        Render2D.drawRect(context, x + .5f, y + .5f, width - 1, height - 1, darkGray);
-        Render2D.drawRect(context, x + 1, y + 1, width - 2, height - 2, midGray);
-        Render2D.drawRect(context, x + 2.5f, y + 2.5f, width - 5, height - 5, darkGray);
-        Render2D.drawRect(context, x + 3, y + 3, width - 6, height - 6, midGray);
-        Render2D.drawRect(context, x + 3, y + 3, width - 6, height - 6, bgColor);
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y, width, height);
+        } else {
+            Render2D.drawRect(context, x, y, width, height, blackBorder);
+            Render2D.drawRect(context, x + .5f, y + .5f, width - 1, height - 1, darkGray);
+            Render2D.drawRect(context, x + 1, y + 1, width - 2, height - 2, midGray);
+            Render2D.drawRect(context, x + 2.5f, y + 2.5f, width - 5, height - 5, darkGray);
+            Render2D.drawRect(context, x + 3, y + 3, width - 6, height - 6, midGray);
+            Render2D.drawRect(context, x + 3, y + 3, width - 6, height - 6, bgColor);
+        }
 
         Render2D.drawOutline(context, x + 5.5f, y + 5.5f, 34, 34, .5f, darkGray);
         Render2D.drawModel(context, target, x, y);

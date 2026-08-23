@@ -41,14 +41,14 @@ public final class Render2D implements IMinecraft {
             return;
         }
 
-        drawRect(context, x + radius, y, width - radius * 2.0f, height, color);                      // 垂直主块
-        drawRect(context, x, y + radius, radius, height - radius * 2.0f, color);                    // 左翼
-        drawRect(context, x + width - radius, y + radius, radius, height - radius * 2.0f, color);  // 右翼
+        drawRect(context, x + radius, y, width - radius * 2.0f, height, color);                      
+        drawRect(context, x, y + radius, radius, height - radius * 2.0f, color);                    
+        drawRect(context, x + width - radius, y + radius, radius, height - radius * 2.0f, color);  
 
-        drawArc(context, x + radius, y + radius, radius, 180, 270, color);               // 左上角
-        drawArc(context, x + width - radius, y + radius, radius, 270, 360, color);        // 右上角
-        drawArc(context, x + width - radius, y + height - radius, radius, 0, 90, color);  // 右下角
-        drawArc(context, x + radius, y + height - radius, radius, 90, 180, color);        // 左下角
+        drawArc(context, x + radius, y + radius, radius, 180, 270, color);               
+        drawArc(context, x + width - radius, y + radius, radius, 270, 360, color);        
+        drawArc(context, x + width - radius, y + height - radius, radius, 0, 90, color);  
+        drawArc(context, x + radius, y + height - radius, radius, 90, 180, color);        
     }
 
     public void drawArc(DrawContext context, float cx, float cy, float radius, float startAngle, float endAngle, int color) {

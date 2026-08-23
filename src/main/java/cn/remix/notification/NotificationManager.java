@@ -1,8 +1,10 @@
 package cn.remix.notification;
 
+import cn.remix.module.Module;
 import cn.remix.util.animation.Easing;
 import cn.remix.util.animation.EasingAnimation;
 import lombok.Getter;
+import lombok.Setter;
 import net.minecraft.util.math.MathHelper;
 
 import java.awt.*;
@@ -33,14 +35,26 @@ public final class NotificationManager {
     }
 
     public static void module(String message, boolean enabled) {
-        push(enabled ? Type.MODULE_ENABLE : Type.MODULE_DISABLE, message);
+        push(enabled ? Type.MODULE_ENABLE : Type.MODULE_DISABLE, message, null, enabled);
+    }
+
+    public static void module(Module module, boolean enabled) {
+        module(module, enabled, module.getName() + (enabled ? " Enabled" : " Disabled"));
+    }
+
+    public static void module(Module module, boolean enabled, String message) {
+        push(enabled ? Type.MODULE_ENABLE : Type.MODULE_DISABLE, message, module, enabled);
     }
 
     public static void push(Type type, String message) {
+        push(type, message, null, false);
+    }
+
+    private static void push(Type type, String message, Module module, boolean enabled) {
         if (message == null || message.isBlank()) {
             return;
         }
-        ENTRIES.add(0, new NotificationEntry(type, message));
+        ENTRIES.add(0, new NotificationEntry(type, message, module, enabled));
     }
 
     public static List<NotificationEntry> entries() {
@@ -81,6 +95,11 @@ public final class NotificationManager {
     public static final class NotificationEntry {
         private final Type type;
         private final String message;
+        private final String moduleName;
+        private final String categoryName;
+        private final boolean enabled;
+        @Setter
+        private BeautifulState beautifulState;
         private final long createdAt = System.currentTimeMillis();
         private final EasingAnimation xAnimation = new EasingAnimation(Easing.EASE_OUT_CUBIC, 260);
         private final EasingAnimation yAnimation = new EasingAnimation(Easing.EASE_OUT_CUBIC, 260);
@@ -90,8 +109,15 @@ public final class NotificationManager {
         private boolean positioned;
 
         private NotificationEntry(Type type, String message) {
+            this(type, message, null, false);
+        }
+
+        private NotificationEntry(Type type, String message, Module module, boolean enabled) {
             this.type = type;
             this.message = message;
+            this.moduleName = module == null ? null : module.getName();
+            this.categoryName = module == null ? null : module.getCategory().getName();
+            this.enabled = module != null && enabled;
         }
 
         public float progress(long now, long durationMillis) {

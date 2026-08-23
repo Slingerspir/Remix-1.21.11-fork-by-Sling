@@ -80,7 +80,7 @@ public final class NoFall extends Module {
     private void doNoFall() {
         if (mc.player == null) return;
 
-        // 重置摔落距离
+        
         mc.player.fallDistance = 0.0f;
 
         float height = triggerHeight.getValue();
@@ -91,7 +91,7 @@ public final class NoFall extends Module {
                 mc.player.getVelocity().z * 0.95
         );
 
-        // 只发一次 OnGround
+        
         PacketUtil.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true, mc.player.horizontalCollision));
     }
 

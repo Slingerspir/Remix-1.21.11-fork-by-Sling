@@ -3,6 +3,7 @@ package cn.remix.module.impl.render.targethud;
 import cn.remix.ui.font.TrueTypeFont;
 import cn.remix.util.IMinecraft;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
@@ -20,7 +21,11 @@ public class Remix implements IMinecraft {
         float width = getWidth(target);
         float height = getHeight();
 
-        Render2D.drawRect(context, x, y, width, height, new Color(30, 30, 30).getRGB());
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y, width, height);
+        } else {
+            Render2D.drawRect(context, x, y, width, height, new Color(30, 30, 30).getRGB());
+        }
 
         if (target instanceof AbstractClientPlayerEntity player) {
             Render2D.drawPlayerHead(context, player, x + 5, y + 5, 32, 32);

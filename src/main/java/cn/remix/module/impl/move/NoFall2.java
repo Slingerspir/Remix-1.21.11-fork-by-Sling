@@ -84,11 +84,11 @@ public final class NoFall2 extends Module {
 
         mc.player.setVelocity(
                 mc.player.getVelocity().x * 0.95,
-                0.05,  // 向上弹 0.05 格
+                0.05,  
                 mc.player.getVelocity().z * 0.95
         );
 
-        // 3️⃣ 发送落地包
+        
         PacketUtil.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true, mc.player.horizontalCollision));
     }
 
@@ -109,7 +109,7 @@ public final class NoFall2 extends Module {
         if (mc.player == null || mc.world == null) return;
         if (event.isPost()) return;
 
-        //  触发后，强制设置 onGround=true
+        
         if (triggered && !mc.player.isOnGround()) {
             event.setOnGround(true);
         }

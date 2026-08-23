@@ -36,7 +36,7 @@ import java.util.List;
 
 public final class ChestGUI extends Module {
 
-    // 显示选项
+    
     private final BoolValue chest = new BoolValue("Chest", true);
     private final BoolValue enderChest = new BoolValue("Ender Chest", true);
     private final ModeValue disableVanillaGui = new ModeValue("Disable Vanilla Gui", "Chest Stealer", "Off", "Chest Stealer", "On");
@@ -49,7 +49,7 @@ public final class ChestGUI extends Module {
     private final BoolValue drawSignWhenClosed = new BoolValue("Draw Sign When Closed", true);
     private final BoolValue excludeShop = new BoolValue("Exclude Shop", true);
 
-    // 布局
+    
     private final NumberValue slotGap = new NumberValue("Slot Gap", 2, -4, 12, 1);
     private final NumberValue hudScaleOpen = new NumberValue("HUD Scale Open", 1.0f, 0.2f, 3.0f, 0.1f);
     private final NumberValue hudScaleClosed = new NumberValue("HUD Scale Closed", 1.0f, 0.2f, 3.0f, 0.1f);
@@ -58,7 +58,7 @@ public final class ChestGUI extends Module {
     private final ColorValue accentColor = new ColorValue("Accent Color", new Color(100, 150, 255));
     private final BoolValue showItemCounts = new BoolValue("Show Item Counts", true);
 
-    // 数据
+    
     private final Map<BlockPos, ChestSnapshot> snapshots = new HashMap<>();
     private final Map<BlockPos, ScreenPoint> screenPoints = new HashMap<>();
     private final Map<BlockPos, Float> hoverAnimations = new HashMap<>();
@@ -118,7 +118,7 @@ public final class ChestGUI extends Module {
             if (currentChest != null && isEnabledBlock(currentChest)) {
                 GenericContainerScreenHandler handler = screen.getScreenHandler();
 
-                // ✅ 正确获取箱子物品
+                
                 Inventory inventory = handler.getInventory();
                 int containerSize = inventory.size();
                 List<ItemStack> items = new ArrayList<>();
@@ -126,7 +126,7 @@ public final class ChestGUI extends Module {
                     items.add(inventory.getStack(i).copy());
                 }
 
-                // 获取标题
+                
                 String title = screen.getTitle().getString();
                 if (title.isEmpty() || title.equals("Chest") || title.equals("container.chest")) {
                     int rows = handler.getRows();
@@ -235,7 +235,7 @@ public final class ChestGUI extends Module {
         float width = 9 * cell - gap + 20.0f;
         float height = rows * cell - gap + 50.0f;
 
-        // 自动适配屏幕：面板超出窗口时自动缩小，保证所有物品（含双箱 54 格）完整可见
+        
         float scale = open ? hudScaleOpen.getValue() : hudScaleClosed.getValue();
         float maxFit = Math.min(
                 (context.getScaledWindowWidth() - 20.0f) / width,
@@ -288,7 +288,7 @@ public final class ChestGUI extends Module {
         Render2D.drawRect(context, 0, 0, 2, height, ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.3f)));
         Render2D.drawRect(context, width - 2, 0, 2, height, ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.15f)));
 
-        // 顶部强调条
+        
         int topBar = ColorUtil.applyAlpha(accent, Math.round(255 * alpha * 0.55f));
         Render2D.drawRect(context, 0, 0, width, 2.5f, topBar);
     }
@@ -380,7 +380,7 @@ public final class ChestGUI extends Module {
                     Render2D.drawRect(context, itemX, itemY, cell, cell, glow);
                 }
 
-                // 悬浮高亮
+                
                 float slotScreenX = panelX + (itemX + 2) * scale;
                 float slotScreenY = panelY + (itemY + 2) * scale;
                 float slotScreenSize = 16.0f * scale;
@@ -393,7 +393,7 @@ public final class ChestGUI extends Module {
             }
         }
 
-        // 垂直分割线
+        
         for (int col = 0; col <= cols; col++) {
             if (col == 0 || col == cols) continue;
             float lineX = startX + col * cell - gap / 2;
@@ -401,7 +401,7 @@ public final class ChestGUI extends Module {
             Render2D.drawRect(context, lineX, startY, 0.5f, usedHeight, lineColor);
         }
 
-        // 水平分割线
+        
         for (int row = 0; row <= rows; row++) {
             if (row == 0 || row == rows) continue;
             float lineY = startY + row * cell - gap / 2;

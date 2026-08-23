@@ -23,9 +23,9 @@ import java.util.LinkedList;
 
 public final class DynamicIsland extends Module {
 
-    // ============================================================
-    // 显示选项
-    // ============================================================
+    
+    
+    
     private final BoolValue showUser = new BoolValue("Show User", true);
     private final BoolValue showVolume = new BoolValue("Show Volume", true);
     private final BoolValue showHealth = new BoolValue("Show Health", true);
@@ -37,15 +37,15 @@ public final class DynamicIsland extends Module {
     private final BoolValue showCPS = new BoolValue("Show CPS", false);
     private final BoolValue showSpeed = new BoolValue("Show Speed", false);
 
-    // ============================================================
-    // 模块状态通知
-    // ============================================================
+    
+    
+    
     private final BoolValue moduleNotify = new BoolValue("Module Notify", true);
     private final NumberValue notifyDuration = new NumberValue("Notify Duration", 2000, 500, 5000, 100);
 
-    // ============================================================
-    // 样式选项
-    // ============================================================
+    
+    
+    
     private final ModeValue style = new ModeValue("Style", "Default",
             "Default", "Glass", "Neon", "Minimal", "Gradient",
             "Compact", "Dark", "Light", "Colorful", "Retro"
@@ -59,9 +59,9 @@ public final class DynamicIsland extends Module {
     private final BoolValue rounded = new BoolValue("Rounded", true);
     private final NumberValue radius = new NumberValue("Radius", 20, 0, 30, 1);
 
-    // ============================================================
-    // 颜色选项
-    // ============================================================
+    
+    
+    
     private final NumberValue backgroundAlpha = new NumberValue("Background Alpha", 180, 0, 255, 5);
 
     private final NumberValue textColorRed = new NumberValue("Text R", 255, 0, 255, 1);
@@ -77,22 +77,22 @@ public final class DynamicIsland extends Module {
     private final NumberValue accentColorGreen = new NumberValue("Accent G", 150, 0, 255, 1);
     private final NumberValue accentColorBlue = new NumberValue("Accent B", 255, 0, 255, 1);
 
-    // ============================================================
-    // 尺寸选项
-    // ============================================================
+    
+    
+    
     private final NumberValue islandWidth = new NumberValue("Width", 480, 200, 700, 5);
     private final NumberValue islandHeight = new NumberValue("Height", 40, 28, 60, 1);
     private final NumberValue xOffset = new NumberValue("X Offset", 0, -200, 200, 1);
     private final NumberValue yOffset = new NumberValue("Y Offset", 0, -100, 100, 1);
 
-    // ============================================================
-    // 动画选项
-    // ============================================================
+    
+    
+    
     private final NumberValue animationSpeed = new NumberValue("Animation Speed", 0.12f, 0.02f, 0.5f, 0.01f);
 
-    // ============================================================
-    // 动画状态
-    // ============================================================
+    
+    
+    
     private float currentWidth;
     private float targetWidth;
     private float currentAlpha;
@@ -103,22 +103,22 @@ public final class DynamicIsland extends Module {
     private float targetY;
     private float widthVelocity;
 
-    // ============================================================
-    // 模块通知状态
-    // ============================================================
+    
+    
+    
     private ModuleNotification currentNotification;
     private boolean moduleNotifyVisible;
 
     private final Queue<ModuleNotification> notificationQueue = new LinkedList<>();
 
-    // ============================================================
-    // 时间格式化
-    // ============================================================
+    
+    
+    
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
 
-    // ============================================================
-    // 构造函数
-    // ============================================================
+    
+    
+    
     public DynamicIsland() {
         super("DynamicIsland", Category.Render);
         this.setEnabled(true);
@@ -135,9 +135,9 @@ public final class DynamicIsland extends Module {
         this.moduleNotifyVisible = false;
     }
 
-    // ============================================================
-    // 启用/禁用
-    // ============================================================
+    
+    
+    
     @Override
     public void onEnable() {
         this.targetWidth = this.islandWidth.getValue().floatValue();
@@ -156,9 +156,9 @@ public final class DynamicIsland extends Module {
         this.notificationQueue.clear();
     }
 
-    // ============================================================
-    // 渲染主方法
-    // ============================================================
+    
+    
+    
     @EventTarget
     public void onRender2D(Render2DEvent event) {
         if (mc.player == null || mc.world == null) {
@@ -199,9 +199,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 更新动画
-    // ============================================================
+    
+    
+    
     private void updateAnimations() {
         float speed = this.animationSpeed.getValue().floatValue();
 
@@ -230,9 +230,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 获取颜色
-    // ============================================================
+    
+    
+    
     private int getTextColor() {
         if (this.colorText.getValue()) {
             return new Color(
@@ -260,9 +260,9 @@ public final class DynamicIsland extends Module {
         ).getRGB();
     }
 
-    // ============================================================
-    // 渲染背景
-    // ============================================================
+    
+    
+    
     private void renderBackground(DrawContext context, float x, float y, float width, float height,
                                   float alpha, float rad) {
         String currentStyle = this.style.getValue();
@@ -297,7 +297,7 @@ public final class DynamicIsland extends Module {
                     ColorUtil.applyAlpha(neonColor, (int) (20.0f * alpha)));
 
         } else if (currentStyle.equals("Minimal")) {
-            // 无背景
+            
 
         } else if (currentStyle.equals("Gradient")) {
             int startColor = new Color(30, 30, 60, bgAlpha).getRGB();
@@ -360,7 +360,7 @@ public final class DynamicIsland extends Module {
                     new Color(255, 50, 255, (int) (150.0f * alpha)).getRGB());
 
         } else {
-            // Default
+            
             int bg = new Color(0, 0, 0, bgAlpha).getRGB();
             if (rad > 0.0f) {
                 Render2D.drawRoundedRect(context, x, y, width, height, rad, bg);
@@ -372,9 +372,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 渲染内容
-    // ============================================================
+    
+    
+    
     private void renderContent(DrawContext context, float x, float y, float width, float height,
                                int textColor, int iconColor) {
         TrueTypeFont font = instance.getFontManager().getFont(16);
@@ -391,7 +391,7 @@ public final class DynamicIsland extends Module {
         float centerY = y + height / 2.0f + 5.0f;
         float spacing = 14.0f;
 
-        // 1. 用户
+        
         if (this.showUser.getValue() && mc.player != null) {
             String name = mc.player.getName().getString();
             if (name.length() > 10) {
@@ -402,7 +402,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(name) + spacing;
         }
 
-        // 2. 音量
+        
         if (this.showVolume.getValue()) {
             int volume = this.getSystemVolume();
             String volumeText = volume + "%";
@@ -411,7 +411,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(volumeText) + spacing;
         }
 
-        // 3. 血量
+        
         if (this.showHealth.getValue() && mc.player != null) {
             int health = (int) Math.ceil(mc.player.getHealth());
             int hpColor;
@@ -427,7 +427,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(String.valueOf(health)) + spacing;
         }
 
-        // 4. FPS
+        
         if (this.showFPS.getValue()) {
             int fps = mc.getCurrentFps();
             int fpsColor;
@@ -443,12 +443,12 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(String.valueOf(fps)) + spacing;
         }
 
-        // 5. Ping
+        
         if (this.showPing.getValue()) {
             int ping = 0;
             ClientPlayNetworkHandler handler = mc.getNetworkHandler();
             if (handler != null) {
-                // 从 playerListEntries 获取自己的 ping
+                
                 PlayerListEntry entry = handler.getPlayerListEntry(mc.player.getUuid());
                 if (entry != null) {
                     ping = entry.getLatency();
@@ -468,7 +468,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(pingText) + spacing;
         }
 
-        // 6. 内存
+        
         if (this.showMemory.getValue()) {
             long used = Runtime.getRuntime().totalMemory() / 1024 / 1024;
             String memText = used + "MB";
@@ -477,7 +477,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(memText) + spacing;
         }
 
-        // 7. 时间
+        
         if (this.showTime.getValue()) {
             String time = this.timeFormat.format(new Date());
             iconFont.drawString(context, "\uD83D\uDD50", currentX, centerY - 4.0f, new Color(255, 200, 50).getRGB(), false);
@@ -485,7 +485,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(time) + spacing;
         }
 
-        // 8. 模块数
+        
         if (this.showModules.getValue()) {
             int count = 0;
             try {
@@ -500,7 +500,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(countText) + spacing;
         }
 
-        // 9. CPS
+        
         if (this.showCPS.getValue()) {
             String cpsText = "0";
             iconFont.drawString(context, "\u2694", currentX, centerY - 4.0f, new Color(255, 100, 100).getRGB(), false);
@@ -508,7 +508,7 @@ public final class DynamicIsland extends Module {
             currentX += 18.0f + font.getStringWidth(cpsText) + spacing;
         }
 
-        // 10. 速度
+        
         if (this.showSpeed.getValue() && mc.player != null) {
             double speed = Math.sqrt(Math.pow(mc.player.getVelocity().x, 2.0) +
                     Math.pow(mc.player.getVelocity().z, 2.0));
@@ -526,9 +526,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 渲染模块通知
-    // ============================================================
+    
+    
+    
     private void renderNotification(DrawContext context, float x, float y, float width, float height,
                                     int textColor, int iconColor, float alpha) {
         if (this.currentNotification == null || !this.moduleNotifyVisible) {
@@ -592,9 +592,9 @@ public final class DynamicIsland extends Module {
                 notifyX + 20.0f, notifyY, color, false);
     }
 
-    // ============================================================
-    // 渲染边框装饰
-    // ============================================================
+    
+    
+    
     private void renderBorderDecoration(DrawContext context, float x, float y, float width, float height,
                                         float rad, float alpha) {
         String currentStyle = this.style.getValue();
@@ -625,9 +625,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 更新模块通知
-    // ============================================================
+    
+    
+    
     private void updateModuleNotification() {
         if (!this.moduleNotify.getValue()) {
             this.moduleNotifyVisible = false;
@@ -669,9 +669,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 获取位置
-    // ============================================================
+    
+    
+    
     private float[] getPosition(int sw, int sh, float width, float height) {
         String pos = this.position.getValue();
         float xOff = this.xOffset.getValue().floatValue();
@@ -705,9 +705,9 @@ public final class DynamicIsland extends Module {
         return new float[]{x, y};
     }
 
-    // ============================================================
-    // 获取系统音量
-    // ============================================================
+    
+    
+    
     private int getSystemVolume() {
         try {
             String os = System.getProperty("os.name");
@@ -723,17 +723,17 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 获取后缀
-    // ============================================================
+    
+    
+    
     @Override
     public String getSuffix() {
         return this.style.getValue();
     }
 
-    // ============================================================
-    // 内部类 - 模块通知
-    // ============================================================
+    
+    
+    
     private static final class ModuleNotification {
         final String moduleName;
         final boolean enabled;
@@ -746,9 +746,9 @@ public final class DynamicIsland extends Module {
         }
     }
 
-    // ============================================================
-    // 静态方法：供模块调用
-    // ============================================================
+    
+    
+    
     public static void onModuleToggle(Module module, boolean enabled) {
         if (instance == null) {
             return;

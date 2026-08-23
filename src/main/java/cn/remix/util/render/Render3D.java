@@ -96,37 +96,37 @@ public final class Render3D implements IMinecraft {
         float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
         float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
 
-        // bottom
+        
         buf.vertex(mat, x0, y0, z0).color(color);
         buf.vertex(mat, x1, y0, z0).color(color);
         buf.vertex(mat, x1, y0, z1).color(color);
         buf.vertex(mat, x0, y0, z1).color(color);
 
-        // top
+        
         buf.vertex(mat, x0, y1, z0).color(color);
         buf.vertex(mat, x0, y1, z1).color(color);
         buf.vertex(mat, x1, y1, z1).color(color);
         buf.vertex(mat, x1, y1, z0).color(color);
 
-        // north
+        
         buf.vertex(mat, x0, y0, z0).color(color);
         buf.vertex(mat, x0, y1, z0).color(color);
         buf.vertex(mat, x1, y1, z0).color(color);
         buf.vertex(mat, x1, y0, z0).color(color);
 
-        // south
+        
         buf.vertex(mat, x0, y0, z1).color(color);
         buf.vertex(mat, x1, y0, z1).color(color);
         buf.vertex(mat, x1, y1, z1).color(color);
         buf.vertex(mat, x0, y1, z1).color(color);
 
-        // west
+        
         buf.vertex(mat, x0, y0, z0).color(color);
         buf.vertex(mat, x0, y0, z1).color(color);
         buf.vertex(mat, x0, y1, z1).color(color);
         buf.vertex(mat, x0, y1, z0).color(color);
 
-        // east
+        
         buf.vertex(mat, x1, y0, z0).color(color);
         buf.vertex(mat, x1, y1, z0).color(color);
         buf.vertex(mat, x1, y1, z1).color(color);

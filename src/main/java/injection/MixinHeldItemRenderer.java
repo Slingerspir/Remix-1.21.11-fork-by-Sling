@@ -91,7 +91,7 @@ public abstract class MixinHeldItemRenderer implements IMinecraft {
             boolean bl = hand == Hand.MAIN_HAND;
             Arm arm = bl ? player.getMainArm() : player.getMainArm().getOpposite();
 
-            if (bl) { // Item Spoof
+            if (bl) { 
                 ItemStack spoofedSlot = ItemSpoofUtil.getStack();
                 item = spoofedSlot != null ? spoofedSlot : item;
             }

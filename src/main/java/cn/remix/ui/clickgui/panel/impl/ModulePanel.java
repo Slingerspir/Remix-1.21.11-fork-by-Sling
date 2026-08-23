@@ -7,8 +7,10 @@ import cn.remix.util.animation.Easing;
 import cn.remix.util.animation.EasingAnimation;
 import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 
 import java.awt.*;
@@ -21,6 +23,7 @@ public final class ModulePanel extends Panel {
     private final List<ModuleButton> buttons = new ArrayList<>();
     private final EasingAnimation barAlphaAnimation = new EasingAnimation(Easing.EASE_OUT_CUBIC, 250);
     private long lastScrollTime;
+    private boolean collapsed;
 
     public ModulePanel(Category category, float x, float y) {
         super(x, y);
@@ -40,15 +43,27 @@ public final class ModulePanel extends Panel {
         var font = instance.getFontManager().getBoldFont(18);
         int alphaInt = (int) (255 * globalAlpha);
 
-        Render2D.drawRect(context, x, y, width, headerHeight, ColorUtil.applyAlpha(new Color(26, 26, 30).getRGB(), alphaInt));
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y, width, headerHeight);
+        } else {
+            Render2D.drawRect(context, x, y, width, headerHeight, ColorUtil.applyAlpha(new Color(26, 26, 30).getRGB(), alphaInt));
+        }
         Render2D.drawRect(context, x, y + headerHeight - 1, width, 1, ColorUtil.applyAlpha(getAccent(), alphaInt));
 
         font.drawString(context, category.getName(), x + 7, y + (headerHeight - font.getHeight()) / 2.0f + 0.5f, ColorUtil.applyAlpha(Color.WHITE.getRGB(), alphaInt));
 
+        if (collapsed) {
+            return;
+        }
+
         float totalH = totalHeight();
         float bodyH = Math.min(totalH, maxHeight);
 
-        Render2D.drawRect(context, x, y + headerHeight, width, bodyH, ColorUtil.applyAlpha(new Color(22, 22, 25).getRGB(), alphaInt));
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y + headerHeight, width, bodyH);
+        } else {
+            Render2D.drawRect(context, x, y + headerHeight, width, bodyH, ColorUtil.applyAlpha(new Color(22, 22, 25).getRGB(), alphaInt));
+        }
         updateScroll(totalH, maxHeight);
 
         Render2D.beginScissor(context, x, y + headerHeight, width, bodyH);
@@ -78,6 +93,14 @@ public final class ModulePanel extends Panel {
         if (dragging) {
             return;
         }
+
+        if (collapsed) {
+            if (isHovered(click.x(), click.y(), x, y, width, headerHeight)) {
+                collapsed = false;
+            }
+            return;
+        }
+
         if (isHovered(click.x(), click.y(), x, y + headerHeight, width, Math.min(totalHeight(), maxHeight))) {
             float buttonY = y + headerHeight + scrollAnimation.getValue().floatValue();
             for (ModuleButton mb : buttons) {
@@ -91,6 +114,22 @@ public final class ModulePanel extends Panel {
     public void mouseReleased(double mouseX, double mouseY, int button) {
         super.mouseReleased(mouseX, mouseY, button);
         buttons.forEach(mb -> mb.mouseReleased(mouseX, mouseY, button));
+
+        if (button == 0 && !dragging) {
+            
+            int screenWidth = mc.getWindow().getScaledWidth();
+            int screenHeight = mc.getWindow().getScaledHeight();
+
+            boolean outside = x + width <= 0 || x >= screenWidth
+                    || y + headerHeight <= 0 || y >= screenHeight;
+
+            x = Math.max(0, Math.min(x, screenWidth - width));
+            y = Math.max(0, Math.min(y, screenHeight - headerHeight));
+
+            if (outside) {
+                collapsed = true;
+            }
+        }
     }
 
     @Override
@@ -104,6 +143,11 @@ public final class ModulePanel extends Panel {
     @Override
     public boolean keyTyped(KeyInput input) {
         return buttons.stream().anyMatch(mb -> mb.keyTyped(input.key()));
+    }
+
+    @Override
+    public boolean charTyped(CharInput input) {
+        return buttons.stream().anyMatch(mb -> mb.charTyped(input));
     }
 
     private float totalHeight() {

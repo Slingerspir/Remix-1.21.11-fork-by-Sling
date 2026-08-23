@@ -20,34 +20,26 @@ public class MixinWindowIcon {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("RemixClient");
 
-    /**
-     * 在 Window 初始化后设置自定义标题和图标
-     */
+    
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onWindowInit(CallbackInfo ci) {
         try {
             Window window = (Window) (Object) this;
 
-            // 设置窗口标题
-            window.setTitle("Remix Client Fork By Sling v1.8.0");
-            LOGGER.info("Window title set to: Remix Client v1.0.0");
-
-            // 设置窗口图标
+            
             setWindowIcon(window);
         } catch (Exception e) {
-            LOGGER.error("Failed to set window title/icon", e);
+            LOGGER.error("Failed to set window icon", e);
         }
     }
 
-    /**
-     * 设置窗口图标
-     */
+    
     private void setWindowIcon(Window window) {
         try {
             MinecraftClient mc = MinecraftClient.getInstance();
             List<IconData> icons = new ArrayList<>();
 
-            // 尝试加载不同尺寸的图标
+            
             int[] sizes = {16, 32, 64, 128};
             for (int size : sizes) {
                 Identifier id = Identifier.of("remix", "textures/icon/icon_" + size + "x" + size + ".png");
@@ -64,11 +56,11 @@ public class MixinWindowIcon {
                         LOGGER.info("Loaded icon: {}x{}", size, size);
                     }
                 } catch (Exception e) {
-                    // 忽略缺失的尺寸
+                    
                 }
             }
 
-            // 如果找不到多尺寸图标，尝试加载单图标
+            
             if (icons.isEmpty()) {
                 try {
                     Identifier id = Identifier.of("remix", "icon.png");
@@ -84,7 +76,7 @@ public class MixinWindowIcon {
                         LOGGER.info("Loaded single icon: {}x{}", image.getWidth(), image.getHeight());
                     }
                 } catch (Exception e) {
-                    // 忽略
+                    
                 }
             }
 
@@ -93,7 +85,7 @@ public class MixinWindowIcon {
                 return;
             }
 
-            // 使用 LWJGL 设置图标
+            
             long handle = window.getHandle();
             try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
                 var buffer = org.lwjgl.glfw.GLFWImage.malloc(icons.size(), stack);
@@ -118,8 +110,6 @@ public class MixinWindowIcon {
         }
     }
 
-    /**
-     * 图标数据记录
-     */
+    
     private record IconData(int width, int height, ByteBuffer pixels) {}
 }

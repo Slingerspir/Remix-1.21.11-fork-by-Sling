@@ -81,10 +81,7 @@ public final class ShaderUtil {
         }
     }
 
-    /**
-     * 使用 BufferBuilder 绘制四边形
-     * BufferBuilder.end() 会自动提交渲染，不需要 BufferRenderer
-     */
+    
     public static void drawQuad(float x, float y, float width, float height) {
         if (!glAvailable) {
             return;
@@ -101,10 +98,10 @@ public final class ShaderUtil {
             buffer.vertex(x + width, y + height, 0.0f);
             buffer.vertex(x, y + height, 0.0f);
 
-            // end() 会自动提交并渲染，无需额外操作
+            
             buffer.end();
         } catch (Exception e) {
-            // 静默失败，回退到 CPU 渲染
+            
         }
     }
 

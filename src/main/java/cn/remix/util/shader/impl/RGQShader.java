@@ -35,7 +35,7 @@ public final class RGQShader {
 
         GL20.glEnable(GL20.GL_BLEND);
         GL20.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        // ✅ 使用 ShaderUtil.drawQuad
+        
         ShaderUtil.drawQuad(x, y, w, h);
         GL20.glDisable(GL20.GL_BLEND);
         RiseShaderProgram.stop();

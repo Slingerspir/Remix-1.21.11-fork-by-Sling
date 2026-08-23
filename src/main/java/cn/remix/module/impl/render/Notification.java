@@ -5,12 +5,17 @@ import cn.remix.event.impl.Render2DEvent;
 import cn.remix.module.Category;
 import cn.remix.module.Module;
 import cn.remix.module.value.impl.BoolValue;
+import cn.remix.module.value.impl.ColorValue;
 import cn.remix.module.value.impl.ModeValue;
 import cn.remix.module.value.impl.NumberValue;
+import cn.remix.module.value.impl.StringValue;
+import cn.remix.notification.BeautifulState;
 import cn.remix.notification.NotificationManager;
 import cn.remix.ui.font.TrueTypeFont;
+import cn.remix.util.animation.Easing;
 import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import lombok.Getter;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -21,14 +26,28 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 public final class Notification extends Module {
 
-    // ===== 风格选择 =====
+    private static final String[] CURVES = {
+            "Linear", "Ease In Quad", "Ease Out Quad", "Ease In Out Quad",
+            "Ease In Cubic", "Ease Out Cubic", "Ease In Out Cubic",
+            "Ease In Quart", "Ease Out Quart", "Ease In Out Quart",
+            "Ease In Quint", "Ease Out Quint", "Ease In Out Quint",
+            "Ease In Sine", "Ease Out Sine", "Ease In Out Sine",
+            "Ease In Expo", "Ease Out Expo", "Ease In Out Expo",
+            "Ease In Circ", "Ease Out Circ",
+            "Ease Out Elastic", "Ease In Back", "Ease Out Back"
+    };
+
+    
     private final ModeValue style = new ModeValue("Style", "Naven",
             "Off",
             "Naven",
+            "Beautiful",
             "Windows 11",
             "Android 12",
             "macOS",
@@ -45,7 +64,7 @@ public final class Notification extends Module {
             "Glow Neon"
     );
 
-    // ===== 通用配置 =====
+    
     private final BoolValue log = new BoolValue("Log", true);
     private final ModeValue logStyle = new ModeValue("Log Style", "xxx Enabled/Disabled",
             "xxx Enabled/Disabled",
@@ -66,6 +85,32 @@ public final class Notification extends Module {
     private final ModeValue position = new ModeValue("Position", "TopRight",
             "TopRight", "TopLeft", "BottomRight", "BottomLeft", "TopCenter", "BottomCenter");
 
+    
+    private final NumberValue openDuration = new NumberValue("Open Duration", 350, 150, 1200, 10, () -> style.is("Beautiful"));
+    private final NumberValue sweepDuration = new NumberValue("Sweep Duration", 260, 100, 1000, 10, () -> style.is("Beautiful"));
+    private final NumberValue eraseDuration = new NumberValue("Erase Duration", 450, 150, 1500, 10, () -> style.is("Beautiful"));
+    private final NumberValue closeDuration = new NumberValue("Close Duration", 350, 150, 1200, 10, () -> style.is("Beautiful"));
+    private final NumberValue contractDuration = new NumberValue("Contract Duration", 350, 150, 1200, 10, () -> style.is("Beautiful"));
+    private final NumberValue lastDelay = new NumberValue("Last Close Delay", 180, 0, 1000, 10, () -> style.is("Beautiful"));
+    private final NumberValue lastEraseDuration = new NumberValue("Last Erase Duration", 450, 150, 1500, 10, () -> style.is("Beautiful"));
+    private final NumberValue barWidth = new NumberValue("Bar Width", 3, 1, 30, 1, () -> style.is("Beautiful"));
+    private final NumberValue textPadding = new NumberValue("Text Padding", 10, 4, 60, 1, () -> style.is("Beautiful"));
+    private final NumberValue backgroundOpacity = new NumberValue("Background Opacity", 50, 0, 100, 1, () -> style.is("Beautiful"));
+    private final NumberValue curtainAlpha = new NumberValue("Curtain Alpha", 255, 0, 255, 1, () -> style.is("Beautiful"));
+    private final NumberValue groupWindow = new NumberValue("Group Window", 250, 50, 1000, 10, () -> style.is("Beautiful"));
+    private final NumberValue beautifulSize = new NumberValue("Size", 100, 60, 200, 5, () -> style.is("Beautiful"));
+    private final NumberValue animationSpeed = new NumberValue("Animation Speed", 100, 25, 400, 5, () -> style.is("Beautiful"));
+    private final ModeValue openCurve = new ModeValue("Open Curve", "Ease Out Cubic", () -> style.is("Beautiful"), CURVES);
+    private final ModeValue sweepCurve = new ModeValue("Sweep Curve", "Ease Out Cubic", () -> style.is("Beautiful"), CURVES);
+    private final ModeValue eraseCurve = new ModeValue("Erase Curve", "Ease Out Cubic", () -> style.is("Beautiful"), CURVES);
+    private final ModeValue coverCurve = new ModeValue("Cover Curve", "Ease In Cubic", () -> style.is("Beautiful"), CURVES);
+    private final ModeValue contractCurve = new ModeValue("Contract Curve", "Ease In Cubic", () -> style.is("Beautiful"), CURVES);
+    private final ModeValue textCurve = new ModeValue("Text Curve", "Ease Out Cubic", () -> style.is("Beautiful"), CURVES);
+    private final StringValue enableText = new StringValue("Enable Text", "Enable", () -> style.is("Beautiful"));
+    private final StringValue disableText = new StringValue("Disable Text", "Disable", () -> style.is("Beautiful"));
+    private final ColorValue enableColor = new ColorValue("Enable Color", new Color(0, 255, 110), () -> style.is("Beautiful"));
+    private final ColorValue disableColor = new ColorValue("Disable Color", new Color(255, 60, 60), () -> style.is("Beautiful"));
+
     public Notification() {
         super("Notification", Category.Render);
         setEnabled(true);
@@ -74,6 +119,11 @@ public final class Notification extends Module {
     @EventTarget
     public void onRender2D(Render2DEvent event) {
         if (style.is("Off")) {
+            return;
+        }
+
+        if (style.is("Beautiful") && (position.is("TopRight") || position.is("BottomRight"))) {
+            renderBeautiful(event);
             return;
         }
 
@@ -127,6 +177,360 @@ public final class Notification extends Module {
 
             renderByStyle(context, x, y, width, height, alpha, progressValue, entry, title, message, titleFont, bodyFont);
             rendered++;
+        }
+    }
+
+    
+    
+    
+    private void renderBeautiful(Render2DEvent event) {
+        List<NotificationManager.NotificationEntry> entries = NotificationManager.entries();
+        if (entries.isEmpty()) {
+            return;
+        }
+
+        DrawContext context = event.getContext();
+        int sw = mc.getWindow().getScaledWidth();
+        int sh = mc.getWindow().getScaledHeight();
+        long now = System.currentTimeMillis();
+        float scale = beautifulScale();
+        TrueTypeFont titleFont = instance.getFontManager().getBoldFont(beautifulFontSize(15, scale));
+        TrueTypeFont bodyFont = instance.getFontManager().getFont(beautifulFontSize(14, scale));
+
+        float gap = 8.0f;
+        float height = 44.0f * scale;
+        int maxVisible = this.maxVisible.getValue().intValue();
+        long window = this.groupWindow.getValue().longValue();
+
+        
+        List<List<NotificationManager.NotificationEntry>> runs = new ArrayList<>();
+        List<NotificationManager.NotificationEntry> run = new ArrayList<>();
+        for (NotificationManager.NotificationEntry entry : entries) {
+            if (!run.isEmpty()) {
+                long diff = run.get(run.size() - 1).getCreatedAt() - entry.getCreatedAt();
+                if (diff > window) {
+                    runs.add(run);
+                    run = new ArrayList<>();
+                }
+            }
+            run.add(entry);
+        }
+        if (!run.isEmpty()) {
+            runs.add(run);
+        }
+
+        List<NotificationManager.NotificationEntry> toRemove = new ArrayList<>();
+        int rendered = 0;
+
+        for (List<NotificationManager.NotificationEntry> group : runs) {
+            if (rendered >= maxVisible) {
+                break;
+            }
+
+            NotificationManager.NotificationEntry leader = group.get(0);
+            BeautifulState state = leader.getBeautifulState();
+            if (state == null) {
+                state = new BeautifulState();
+                leader.setBeautifulState(state);
+            }
+            advanceBeautiful(state, group, entries, now);
+
+            if (state.phase == BeautifulState.Phase.DONE) {
+                toRemove.addAll(group);
+                continue;
+            }
+
+            float width = 0.0f;
+            for (NotificationManager.NotificationEntry entry : group) {
+                width = Math.max(width, computeBeautifulWidth(entry, titleFont, bodyFont));
+            }
+
+            float minX = Float.MAX_VALUE;
+            float minY = Float.MAX_VALUE;
+            float maxY = -Float.MAX_VALUE;
+            for (NotificationManager.NotificationEntry entry : group) {
+                int listIndex = entries.indexOf(entry);
+                float[] pos = getPosition(sw, sh, width, height, listIndex, gap);
+                entry.setDestination(pos[0], pos[1]);
+                minX = Math.min(minX, entry.getX());
+                minY = Math.min(minY, entry.getY());
+                maxY = Math.max(maxY, entry.getY() + height);
+            }
+
+            float anchorX = minX;
+            float anchorY = minY;
+            float groupWidth = width;
+            float groupHeight = maxY - minY;
+            float progress = beautifulProgress(state, now, group.size() > 1);
+
+            for (NotificationManager.NotificationEntry entry : group) {
+                if (rendered >= maxVisible) {
+                    break;
+                }
+                renderBeautifulEntry(context, entry, width, height, state, now, progress,
+                        anchorX, anchorY, groupWidth, groupHeight, group.size() > 1,
+                        titleFont, bodyFont);
+                rendered++;
+            }
+        }
+
+        if (!toRemove.isEmpty()) {
+            entries.removeAll(toRemove);
+        }
+    }
+
+    private void advanceBeautiful(BeautifulState state, List<NotificationManager.NotificationEntry> group,
+                                  List<NotificationManager.NotificationEntry> all, long now) {
+        switch (state.phase) {
+            case OPEN:
+                if (beautifulProgress(state, now, group.size() > 1) >= 1.0f) {
+                    startBeautifulPhase(state, BeautifulState.Phase.ERASE);
+                }
+                break;
+            case ERASE:
+                if (beautifulProgress(state, now, true) >= 1.0f) {
+                    startBeautifulPhase(state, BeautifulState.Phase.HOLD);
+                }
+                break;
+            case HOLD:
+                if (beautifulProgress(state, now, true) >= 1.0f) {
+                    startBeautifulPhase(state, BeautifulState.Phase.COVER);
+                }
+                break;
+            case COVER:
+                if (beautifulProgress(state, now, true) >= 1.0f) {
+                    boolean lastOnly = group.size() == 1 && all.size() == 1;
+                    startBeautifulPhase(state, lastOnly ? BeautifulState.Phase.LAST_ERASE : BeautifulState.Phase.CONTRACT);
+                }
+                break;
+            case CONTRACT:
+                if (beautifulProgress(state, now, true) >= 1.0f) {
+                    state.phase = BeautifulState.Phase.DONE;
+                }
+                break;
+            case LAST_ERASE:
+                if (beautifulProgress(state, now, true) >= 1.0f) {
+                    state.phase = BeautifulState.Phase.DONE;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void startBeautifulPhase(BeautifulState state, BeautifulState.Phase phase) {
+        state.phase = phase;
+        state.phaseStart = System.currentTimeMillis();
+    }
+
+    private long beautifulDurationMs(BeautifulState.Phase phase, boolean group) {
+        long base;
+        switch (phase) {
+            case OPEN:
+                base = (group ? openDuration : sweepDuration).getValue().longValue();
+                break;
+            case ERASE:
+                base = eraseDuration.getValue().longValue();
+                break;
+            case HOLD:
+                base = duration.getValue().longValue();
+                break;
+            case COVER:
+                base = closeDuration.getValue().longValue();
+                break;
+            case CONTRACT:
+                base = contractDuration.getValue().longValue();
+                break;
+            case LAST_ERASE:
+                base = lastDelay.getValue().longValue() + lastEraseDuration.getValue().longValue();
+                break;
+            default:
+                return 0L;
+        }
+        return beautifulScaled(base);
+    }
+
+    private float beautifulProgress(BeautifulState state, long now, boolean group) {
+        long duration = beautifulDurationMs(state.phase, group);
+        if (duration <= 0L) {
+            return 1.0f;
+        }
+        return MathHelper.clamp((now - state.phaseStart) / (float) duration, 0.0f, 1.0f);
+    }
+
+    private void renderBeautifulEntry(DrawContext context, NotificationManager.NotificationEntry entry,
+                                      float width, float height, BeautifulState state, long now, float progress,
+                                      float anchorX, float anchorY, float groupWidth, float groupHeight,
+                                      boolean group, TrueTypeFont titleFont, TrueTypeFont bodyFont) {
+        float x = entry.getX();
+        float y = entry.getY();
+        int curtain = curtainColor(entry);
+        int bg = new Color(0, 0, 0, Math.round(255.0f * this.backgroundOpacity.getValue().floatValue() / 100.0f)).getRGB();
+        float scale = beautifulScale();
+        float pad = this.textPadding.getValue().floatValue() * scale;
+        float barW = this.barWidth.getValue().floatValue();
+
+        switch (state.phase) {
+            case OPEN: {
+                float e = clampEase(group ? openCurve : sweepCurve, progress);
+                if (group) {
+                    
+                    drawClippedRect(context, x, y, width, height, anchorX, anchorY, groupWidth * e, groupHeight * e, bg);
+                    drawClippedRect(context, x, y, width, height, anchorX, anchorY, groupWidth * e, groupHeight * e, curtain);
+                } else {
+                    
+                    drawClippedRect(context, x, y, width, height, x, y, width * e, height, bg);
+                    drawClippedRect(context, x, y, width, height, x, y, width * e, height, curtain);
+                }
+                break;
+            }
+            case ERASE: {
+                float e = clampEase(eraseCurve, progress);
+                float reveal = Math.max(0.0f, width - barW) * e;
+                Render2D.drawRect(context, x, y, width, height, bg);
+                drawBeautifulText(context, entry, x, y, width, height, titleFont, bodyFont, pad, reveal, clampEase(textCurve, e));
+                if (reveal < width) {
+                    
+                    Render2D.drawRect(context, x + reveal, y, width - reveal, height, curtain);
+                }
+                break;
+            }
+            case HOLD: {
+                Render2D.drawRect(context, x, y, width, height, bg);
+                drawBeautifulText(context, entry, x, y, width, height, titleFont, bodyFont, pad, width, 1.0f);
+                drawBar(context, x, y, width, height, barW, curtain);
+                break;
+            }
+            case COVER: {
+                float e = clampEase(coverCurve, progress);
+                Render2D.drawRect(context, x, y, width, height, bg);
+                drawBeautifulText(context, entry, x, y, width, height, titleFont, bodyFont, pad, width, 1.0f - e);
+                drawBar(context, x, y, width, height, barW, curtain);
+                if (e > 0.0f) {
+                    Render2D.drawRect(context, x + width - width * e, y, width * e, height, curtain);
+                }
+                break;
+            }
+            case CONTRACT: {
+                float e = clampEase(contractCurve, progress);
+                
+                drawClippedRect(context, x, y, width, height, anchorX, anchorY,
+                        groupWidth * (1.0f - e), groupHeight * (1.0f - e), curtain);
+                break;
+            }
+            case LAST_ERASE: {
+                long elapsed = now - state.phaseStart;
+                long delay = beautifulScaled(lastDelay.getValue().longValue());
+                if (elapsed < delay) {
+                    Render2D.drawRect(context, x, y, width, height, curtain);
+                } else {
+                    float p = MathHelper.clamp((elapsed - delay) / (float) beautifulScaled(lastEraseDuration.getValue().longValue()), 0.0f, 1.0f);
+                    float e = clampEase(eraseCurve, p);
+                    float remain = width * (1.0f - e);
+                    Render2D.drawRect(context, x, y, Math.max(0.0f, remain), height, curtain);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    private void drawBeautifulText(DrawContext context, NotificationManager.NotificationEntry entry,
+                                   float x, float y, float width, float height,
+                                   TrueTypeFont titleFont, TrueTypeFont bodyFont,
+                                   float pad, float clipWidth, float alpha) {
+        if (clipWidth <= 0.0f || alpha <= 0.01f) {
+            return;
+        }
+        int a = Math.round(255.0f * MathHelper.clamp(alpha, 0.0f, 1.0f));
+        int color1 = ColorUtil.applyAlpha(Color.WHITE.getRGB(), a);
+        int color2 = ColorUtil.applyAlpha(new Color(228, 228, 235).getRGB(), a);
+        float scale = beautifulScale();
+
+        Render2D.beginScissor(context, x, y, Math.min(clipWidth, width), height);
+        titleFont.drawString(context, beautifulLine1(entry), x + pad, y + 6.0f * scale, color1, false);
+        bodyFont.drawString(context, beautifulLine2(entry), x + pad, y + 24.0f * scale, color2, false);
+        Render2D.endScissor(context);
+    }
+
+    private void drawClippedRect(DrawContext context, float x, float y, float width, float height,
+                                 float clipX, float clipY, float clipW, float clipH, int color) {
+        float cx = Math.max(x, clipX);
+        float cy = Math.max(y, clipY);
+        float cxx = Math.min(x + width, clipX + clipW);
+        float cyy = Math.min(y + height, clipY + clipH);
+        if (cxx <= cx || cyy <= cy) {
+            return;
+        }
+        Render2D.beginScissor(context, cx, cy, cxx - cx, cyy - cy);
+        Render2D.drawRect(context, x, y, width, height, color);
+        Render2D.endScissor(context);
+    }
+
+    private void drawBar(DrawContext context, float x, float y, float width, float height, float barWidth, int color) {
+        if (barWidth <= 0.0f) {
+            return;
+        }
+        float scale = beautifulScale();
+        Render2D.drawRect(context, x + width - barWidth, y + 4.0f * scale, barWidth, height - 8.0f * scale, color);
+    }
+
+    private float computeBeautifulWidth(NotificationManager.NotificationEntry entry,
+                                        TrueTypeFont titleFont, TrueTypeFont bodyFont) {
+        float textWidth = Math.max(titleFont.getStringWidth(beautifulLine1(entry)),
+                bodyFont.getStringWidth(beautifulLine2(entry)));
+        float scale = beautifulScale();
+        float pad = this.textPadding.getValue().floatValue() * scale;
+        return Math.max(160.0f * scale, Math.min(300.0f * scale, textWidth + pad * 2.0f + 28.0f));
+    }
+
+    private String beautifulLine1(NotificationManager.NotificationEntry entry) {
+        if (entry.getModuleName() != null) {
+            return entry.getCategoryName() == null ? entry.getType().getLabel() : entry.getCategoryName();
+        }
+        return entry.getType().getLabel();
+    }
+
+    private String beautifulLine2(NotificationManager.NotificationEntry entry) {
+        if (entry.getModuleName() != null) {
+            return entry.getModuleName() + " · " + (entry.isEnabled() ? this.enableText.getValue() : this.disableText.getValue());
+        }
+        return entry.getMessage();
+    }
+
+    private int curtainColor(NotificationManager.NotificationEntry entry) {
+        int alpha = this.curtainAlpha.getValue().intValue();
+        if (entry.getModuleName() != null) {
+            Color color = entry.isEnabled() ? this.enableColor.getValue() : this.disableColor.getValue();
+            return ColorUtil.applyAlpha(color.getRGB(), alpha);
+        }
+        return ColorUtil.applyAlpha(entry.getType().getColor(), alpha);
+    }
+
+    private float clampEase(ModeValue curve, float progress) {
+        double value = easing(curve.getValue()).getFunction().apply((double) MathHelper.clamp(progress, 0.0f, 1.0f));
+        return (float) MathHelper.clamp(value, 0.0, 1.0);
+    }
+
+    private float beautifulScale() {
+        return this.beautifulSize.getValue().floatValue() / 100.0f;
+    }
+
+    private int beautifulFontSize(int base, float scale) {
+        return Math.max(8, Math.min(40, Math.round(base * scale)));
+    }
+
+    private long beautifulScaled(long millis) {
+        float speed = this.animationSpeed.getValue().floatValue();
+        return Math.max(1L, Math.round(millis * 100.0f / speed));
+    }
+
+    private Easing easing(String name) {
+        try {
+            return Easing.valueOf(name.toUpperCase().replace(' ', '_'));
+        } catch (Exception ignored) {
+            return Easing.EASE_OUT_CUBIC;
         }
     }
 
@@ -189,7 +593,12 @@ public final class Notification extends Module {
         int color = entry.getType().getColor();
         String currentStyle = style.getValue();
 
-        // ===== Naven（原有风格） =====
+        
+        if (currentStyle.equals("Beautiful")) {
+            currentStyle = "Naven";
+        }
+
+        
         if (currentStyle.equals("Naven")) {
             int bg = ColorUtil.applyAlpha(color, (int) (alpha * 232.0f));
             int shadow = new Color(0, 0, 0, (int) (alpha * 95.0f)).getRGB();
@@ -198,7 +607,11 @@ public final class Notification extends Module {
             int subText = ColorUtil.applyAlpha(new Color(225, 236, 240).getRGB(), (int) (alpha * 235.0f));
 
             Render2D.drawRect(context, x + 2.0f, y + 3.0f, width, height, shadow);
-            Render2D.drawRect(context, x, y, width, height, bg);
+            if (LiquidGlassUtil.isGlass()) {
+                LiquidGlassUtil.drawGlass(context, x, y, width, height);
+            } else {
+                Render2D.drawRect(context, x, y, width, height, bg);
+            }
             Render2D.drawRect(context, x + 6.0f, y + 7.0f, 3.0f, height - 14.0f, strip);
             titleFont.drawString(context, title, x + 14.0f, y + 6.0f, text, false);
             bodyFont.drawString(context, message, x + 14.0f, y + 22.0f, subText, false);
@@ -214,10 +627,14 @@ public final class Notification extends Module {
         int white = ColorUtil.applyAlpha(Color.WHITE.getRGB(), (int) (alpha * 255.0f));
         int gray = ColorUtil.applyAlpha(new Color(200, 200, 210).getRGB(), (int) (alpha * 230.0f));
 
-        // ===== Windows 11 =====
+        
         if (currentStyle.equals("Windows 11")) {
             int bg = new Color(40, 40, 45, (int) (alpha * 200)).getRGB();
-            Render2D.drawRect(context, x, y, width, height, bg);
+            if (LiquidGlassUtil.isGlass()) {
+                LiquidGlassUtil.drawGlass(context, x, y, width, height);
+            } else {
+                Render2D.drawRect(context, x, y, width, height, bg);
+            }
             Render2D.drawRect(context, x, y, width, 1, new Color(255, 255, 255, (int) (alpha * 60)).getRGB());
             Render2D.drawRect(context, x + 2, y + 4, 4, height - 8, ColorUtil.applyAlpha(color, (int) (alpha * 180)));
             titleFont.drawString(context, title, x + 14, y + 5, white, false);
@@ -229,10 +646,14 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Android 12 =====
+        
         if (currentStyle.equals("Android 12")) {
             int bg = new Color(30, 30, 35, (int) (alpha * 220)).getRGB();
-            Render2D.drawRect(context, x, y, width, height, bg);
+            if (LiquidGlassUtil.isGlass()) {
+                LiquidGlassUtil.drawGlass(context, x, y, width, height);
+            } else {
+                Render2D.drawRect(context, x, y, width, height, bg);
+            }
             Render2D.drawRect(context, x, y, width, 2, ColorUtil.applyAlpha(color, (int) (alpha * 200)));
             titleFont.drawString(context, title, x + 16, y + 6, white, false);
             bodyFont.drawString(context, message, x + 16, y + 24, gray, false);
@@ -243,10 +664,14 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== macOS =====
+        
         if (currentStyle.equals("macOS")) {
             int bg = new Color(45, 45, 50, (int) (alpha * 230)).getRGB();
-            Render2D.drawRect(context, x, y, width, height, bg);
+            if (LiquidGlassUtil.isGlass()) {
+                LiquidGlassUtil.drawGlass(context, x, y, width, height);
+            } else {
+                Render2D.drawRect(context, x, y, width, height, bg);
+            }
             Render2D.drawRect(context, x + 4, y, width - 8, 1, new Color(255, 255, 255, (int) (alpha * 30)).getRGB());
             int dotY = (int) (y + 6);
             Render2D.drawRect(context, x + 8, dotY, 8, 8, new Color(255, 95, 87, (int) (alpha * 200)).getRGB());
@@ -257,7 +682,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== iOS =====
+        
         if (currentStyle.equals("iOS")) {
             int bg = new Color(28, 28, 30, (int) (alpha * 235)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -271,7 +696,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Linux GNOME =====
+        
         if (currentStyle.equals("Linux GNOME")) {
             int bg = new Color(30, 30, 35, (int) (alpha * 215)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -285,7 +710,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Material You =====
+        
         if (currentStyle.equals("Material You")) {
             int bg = new Color(30, 30, 40, (int) (alpha * 225)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -296,7 +721,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Fluent Design =====
+        
         if (currentStyle.equals("Fluent Design")) {
             int bg = new Color(20, 20, 25, (int) (alpha * 220)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -311,7 +736,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Neumorphism =====
+        
         if (currentStyle.equals("Neumorphism")) {
             int bg = new Color(35, 35, 40, (int) (alpha * 220)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -324,7 +749,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Glassmorphism =====
+        
         if (currentStyle.equals("Glassmorphism")) {
             int bg = new Color(255, 255, 255, (int) (alpha * 35)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -335,7 +760,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Retro Pixel =====
+        
         if (currentStyle.equals("Retro Pixel")) {
             int bg = new Color(20, 20, 30, (int) (alpha * 240)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -348,7 +773,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Hacker Terminal =====
+        
         if (currentStyle.equals("Hacker Terminal")) {
             int bg = new Color(0, 10, 0, (int) (alpha * 240)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -358,7 +783,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Cyberpunk 2077 =====
+        
         if (currentStyle.equals("Cyberpunk 2077")) {
             int bg = new Color(10, 5, 20, (int) (alpha * 240)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -370,7 +795,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Minimal =====
+        
         if (currentStyle.equals("Minimal")) {
             int bg = new Color(25, 25, 30, (int) (alpha * 210)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -380,7 +805,7 @@ public final class Notification extends Module {
             return;
         }
 
-        // ===== Glow Neon =====
+        
         if (currentStyle.equals("Glow Neon")) {
             int bg = new Color(10, 5, 15, (int) (alpha * 235)).getRGB();
             Render2D.drawRect(context, x, y, width, height, bg);
@@ -399,7 +824,7 @@ public final class Notification extends Module {
         }
     }
 
-    // ===== 原有方法 =====
+    
 
     public static void onModuleToggle(Module module, boolean enabled) {
         if (instance == null || instance.getModuleManager() == null) {
@@ -411,9 +836,9 @@ public final class Notification extends Module {
             return;
         }
 
-        String message = notification.formatToggle(module.getName(), enabled, false, false);
         if (!notification.style.is("Off")) {
-            NotificationManager.module(message, enabled);
+            NotificationManager.module(module, enabled,
+                    notification.formatToggle(module.getName(), enabled, false, false));
         }
 
         if (notification.log.getValue()) {

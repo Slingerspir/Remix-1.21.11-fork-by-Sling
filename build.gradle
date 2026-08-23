@@ -13,7 +13,7 @@ base {
 
 
 repositories {
-    // 国内镜像源
+    
     maven {
         name = "Aliyun"
         url = "https://maven.aliyun.com/repository/public"
@@ -30,18 +30,18 @@ repositories {
         name = "MinecraftForge"
         url = "https://maven.minecraftforge.net/"
     }
-    // 如果使用Mojang映射，可能需要这个
+    
     maven {
         name = "Mojang"
         url = "https://libraries.minecraft.net/"
     }
-    // 保留原始仓库作为备用
+    
     mavenCentral()
     mavenLocal()
 }
 
 dependencies {
-    // To change the versions see the gradle.properties file
+    
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
@@ -68,10 +68,10 @@ processResources {
 
 def targetJavaVersion = 21
 tasks.withType(JavaCompile).configureEach {
-    // ensure that the encoding is set to UTF-8, no matter what the system default is
-    // this fixes some edge cases with special characters not displaying correctly
-    // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
-    // If Javadoc is generated, this must be specified in that task too.
+    
+    
+    
+    
     it.options.encoding = "UTF-8"
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         it.options.release.set(targetJavaVersion)
@@ -83,9 +83,9 @@ java {
     if (JavaVersion.current() < javaVersion) {
         toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     }
-    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-    // if it is present.
-    // If you remove this line, sources will not be generated.
+    
+    
+    
     withSourcesJar()
 }
 
@@ -95,7 +95,7 @@ jar {
     }
 }
 
-// configure the maven publication
+
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
@@ -104,11 +104,11 @@ publishing {
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+        
+        
+        
+        
     }
 }

@@ -23,35 +23,35 @@ public class ItemUtil implements IMinecraft {
     public boolean isUseless(int slotIndex, ItemStack stack) {
         if (mc.player == null || stack == null || stack.isEmpty()) return true;
 
-        // Armor
+        
         if (isArmor(stack)) {
             EquippableComponent equippable = stack.get(DataComponentTypes.EQUIPPABLE);
             if (equippable == null) return true;
             return slotIndex == -1 ? !(getArmorScore(stack) > getBestArmorScore(equippable.slot())) : slotIndex != getBestArmorSlot(equippable.slot());
         }
 
-        // Weapon
+        
         if (isSword(stack)) {
             return slotIndex == -1 ? !(getWeaponScore(stack) > getBestWeaponScore()) : slotIndex != getBestWeaponSlot();
         }
 
-        // Tool
+        
         if (isTool(stack)) {
             TagKey<Item> toolTag = getToolTag(stack);
             return slotIndex == -1 ? !(getToolScore(stack) > getBestToolScore(toolTag)) : slotIndex != getBestToolSlot(toolTag);
         }
 
-        // Pearl
+        
         if (stack.getItem() instanceof EnderPearlItem) {
             return false;
         }
 
-        // Projectile (Snowball, Egg)
+        
         if (isProjectile(stack)) {
             return false;
         }
 
-        // Food
+        
         if (stack.contains(DataComponentTypes.FOOD)) {
             if (isGoldenApple(stack)) {
                 return false;
@@ -88,7 +88,7 @@ public class ItemUtil implements IMinecraft {
             }
         }
 
-        // Block
+        
         if (stack.getItem() instanceof BlockItem blockItem) {
             InventoryManager inventoryManager = instance.getModuleManager().getModule(InventoryManager.class);
             if (!BlockUtil.isPlaceable(blockItem.getBlock())) return true;

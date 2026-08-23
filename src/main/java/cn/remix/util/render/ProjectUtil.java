@@ -9,10 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-/**
- * @author DSJ
- * create 2026/7/1
- */
+
 @UtilityClass
 public class ProjectUtil implements IMinecraft {
     private final Vector4f vec4f = new Vector4f();

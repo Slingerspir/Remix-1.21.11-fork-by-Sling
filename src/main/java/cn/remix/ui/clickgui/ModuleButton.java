@@ -12,8 +12,10 @@ import cn.remix.util.animation.EasingAnimation;
 import cn.remix.util.misc.KeyUtil;
 import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import lombok.Getter;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.input.CharInput;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -40,6 +42,7 @@ public final class ModuleButton implements IMinecraft {
             else if (value instanceof ModeValue mode) components.add(new ModeComponent(this, mode));
             else if (value instanceof MultiBoolValue multi) components.add(new MultiBoolComponent(this, multi));
             else if (value instanceof ColorValue color) components.add(new ColorComponent(this, color));
+            else if (value instanceof StringValue str) components.add(new StringComponent(this, str));
         }
     }
 
@@ -50,7 +53,11 @@ public final class ModuleButton implements IMinecraft {
 
         hoverAnimation.run(hovered ? 1 : 0);
         int bg = ColorUtil.interpolate(new Color(34, 34, 38).getRGB(), new Color(42, 42, 48).getRGB(), hoverAnimation.getValue().floatValue());
-        Render2D.drawRect(context, x, y, width, height, ColorUtil.applyAlpha(bg, alphaInt));
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y, width, height);
+        } else {
+            Render2D.drawRect(context, x, y, width, height, ColorUtil.applyAlpha(bg, alphaInt));
+        }
 
         toggleAnimation.run(module.isEnabled() ? 1 : 0);
         float fontY = y + (height - font.getHeight()) / 2.0f + 0.5f;
@@ -101,6 +108,23 @@ public final class ModuleButton implements IMinecraft {
             module.setKey(keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE ? -1 : keyCode);
             binding = false;
             return true;
+        }
+        if (extended) {
+            for (Component c : components) {
+                if (c instanceof StringComponent sc && sc.keyTyped(keyCode)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean charTyped(CharInput input) {
+        if (!extended) return false;
+        for (Component c : components) {
+            if (c instanceof StringComponent sc && sc.charTyped(input)) {
+                return true;
+            }
         }
         return false;
     }

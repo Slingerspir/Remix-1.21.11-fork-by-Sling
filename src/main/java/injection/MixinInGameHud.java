@@ -21,7 +21,7 @@ public abstract class MixinInGameHud implements IMinecraft {
     private GuiRenderState state;
 
     @Unique
-    private static final long cache = 1_000_000_000L / 120L; // 120hz
+    private static final long cache = 1_000_000_000L / 120L; 
 
     @Unique
     private long nano = System.nanoTime();

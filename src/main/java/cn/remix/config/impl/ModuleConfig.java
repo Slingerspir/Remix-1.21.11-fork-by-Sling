@@ -84,6 +84,7 @@ public final class ModuleConfig extends Config {
                 case BoolValue bool -> valuesObject.addProperty(bool.getName(), bool.getValue());
                 case NumberValue num -> valuesObject.addProperty(num.getName(), num.getValue());
                 case ModeValue mode -> valuesObject.addProperty(mode.getName(), mode.getValue());
+                case StringValue str -> valuesObject.addProperty(str.getName(), str.getValue());
                 case ColorValue color -> valuesObject.addProperty(color.getName(), color.getValue().getRGB());
                 case MultiBoolValue multi -> {
                     final JsonObject multiObject = new JsonObject();
@@ -131,6 +132,7 @@ public final class ModuleConfig extends Config {
                         case BoolValue bool -> bool.setValue(element.getAsBoolean());
                         case NumberValue num -> num.setValue(element.getAsFloat());
                         case ModeValue mode -> mode.setValue(element.getAsString());
+                        case StringValue str -> str.setValue(element.getAsString());
                         case ColorValue color -> color.setValue(new java.awt.Color(element.getAsInt()));
                         case MultiBoolValue multi when element.isJsonObject() -> {
                             final JsonObject multiObject = element.getAsJsonObject();

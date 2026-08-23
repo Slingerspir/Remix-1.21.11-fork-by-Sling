@@ -61,7 +61,7 @@ public class MainMenu extends AbstractScreen {
         quit.setBounds(centerX - buttonWidth / 2, startY + gap * 4, buttonWidth, buttonHeight);
         buttons.add(quit);
 
-        // 左下角按钮
+        
         AdaptiveButton vanillaBtn = new AdaptiveButton("Vanilla Menu", () -> {
             System.setProperty("remix.first_launch", "false");
             mc.setScreen(new TitleScreen());

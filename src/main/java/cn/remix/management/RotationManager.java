@@ -15,10 +15,7 @@ import cn.remix.util.player.RotationUtil;
 import injection.accessor.PlayerMoveC2SPacketAccessor;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 
-/**
- * RotationManager
- * @author DSJ
- */
+
 public class RotationManager implements IMinecraft {
     public static float[] currentRotations;
     public static float[] targetRotations;

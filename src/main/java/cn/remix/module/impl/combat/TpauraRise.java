@@ -24,12 +24,13 @@ import cn.remix.util.render.Render3D;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.ClientTickEndC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 
 import java.awt.*;
@@ -62,6 +63,7 @@ public final class TpauraRise extends Module {
     private final BoolValue teammates = new BoolValue("Teammates", false);
 
     private final TimerUtil clickStopWatch = new TimerUtil();
+    private final TimerUtil lagbackTimer = new TimerUtil();
     private final List<Vec3d> path = new ArrayList<>();
     private final Deque<Packet<?>> heldPackets = new ArrayDeque<>();
     private LivingEntity target;
@@ -152,13 +154,22 @@ public final class TpauraRise extends Module {
 
     @EventTarget
     public void onPacket(PacketEvent event) {
-        if (!mode.is("Watchdog") || mc.player == null) return;
+        if (mc.player == null) return;
 
         if (event.getType() == PacketEvent.Type.Received) {
-            if (event.getPacket() instanceof PlayerPositionLookS2CPacket && !blinking) {
-                startBlink();
+            if (event.getPacket() instanceof PlayerPositionLookS2CPacket) {
+                if (mode.is("Watchdog")) {
+                    if (!blinking) {
+                        startBlink();
+                    }
+                } else if (phase != PathPhase.IDLE) {
+                    
+                    
+                    resetPath();
+                    lagbackTimer.reset();
+                }
             }
-        } else if (event.getType() == PacketEvent.Type.Send) {
+        } else if (event.getType() == PacketEvent.Type.Send && mode.is("Watchdog")) {
             if (blinking && !event.isCancelled()) {
                 heldPackets.add(event.getPacket());
                 event.setCancelled();
@@ -202,6 +213,10 @@ public final class TpauraRise extends Module {
     private void onTeleportAuraUpdate() {
         if (phase != PathPhase.IDLE) {
             tickPathPhase();
+            return;
+        }
+
+        if (!lagbackTimer.hasTimeElapsed(1000)) {
             return;
         }
 
@@ -272,7 +287,6 @@ public final class TpauraRise extends Module {
             Vec3d point = path.get(pathIndex);
             PacketUtil.sendPacketNoEvent(new PlayerMoveC2SPacket.PositionAndOnGround(
                     point.x, point.y, point.z, true, mc.player.horizontalCollision));
-            PacketUtil.sendPacketNoEvent(new ClientTickEndC2SPacket());
             pathIndex++;
             sent++;
         }
@@ -324,19 +338,37 @@ public final class TpauraRise extends Module {
 
     private List<Vec3d> buildPath(Vec3d from, Vec3d to) {
         List<Vec3d> points = new ArrayList<>();
+        if (!isFinite(from) || !isFinite(to)) {
+            return points;
+        }
+
         double step = Math.max(0.5, stepSize.getValue());
         double distance = from.distanceTo(to);
         if (distance < 0.05) return points;
 
         int steps = Math.max(1, (int) Math.ceil(distance / step));
         for (int s = 1; s <= steps; s++) {
-            points.add(from.lerp(to, s / (double) steps));
-        }
-
-        if (points.size() > 200) {
-            return new ArrayList<>(points.subList(0, 200));
+            Vec3d point = from.lerp(to, s / (double) steps);
+            if (!isFinite(point) || !isInLoadedChunk(point)) {
+                
+                return new ArrayList<>();
+            }
+            points.add(point);
+            if (points.size() >= 200) {
+                break;
+            }
         }
         return points;
+    }
+
+    private boolean isFinite(Vec3d vec) {
+        return Double.isFinite(vec.x) && Double.isFinite(vec.y) && Double.isFinite(vec.z);
+    }
+
+    private boolean isInLoadedChunk(Vec3d vec) {
+        if (mc.world == null) return false;
+        ChunkPos chunkPos = new ChunkPos(BlockPos.ofFloored(vec));
+        return mc.world.isChunkLoaded(chunkPos.x, chunkPos.z);
     }
 
     private List<LivingEntity> getTargets() {
@@ -388,6 +420,7 @@ public final class TpauraRise extends Module {
         blinkTicks = 0;
         skipNextTick = true;
         blinking = false;
+        lagbackTimer.time = 0L;
         resetPath();
         clickStopWatch.reset();
         nextSwing = 0L;

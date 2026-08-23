@@ -2,6 +2,7 @@ package cn.remix.ui.clickgui;
 
 import cn.remix.module.Category;
 import cn.remix.module.impl.render.ClickGui;
+import cn.remix.module.impl.render.LiquidGlass;
 import cn.remix.ui.clickgui.panel.Panel;
 import cn.remix.ui.clickgui.panel.impl.ConfigPanel;
 import cn.remix.ui.clickgui.panel.impl.ModulePanel;
@@ -9,6 +10,7 @@ import cn.remix.util.IMinecraft;
 import cn.remix.util.animation.Easing;
 import cn.remix.util.animation.EasingAnimation;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -60,10 +62,23 @@ public final class ClickGuiScreen extends Screen implements IMinecraft {
         super.render(context, mouseX, mouseY, delta);
         openAnimation.run(closing ? 1.5 : 1.0);
 
+        if (LiquidGlass.isBlurEnabled()) {
+            
+            
+            
+            try {
+                if (mc.options.getMenuBackgroundBlurrinessValue() == 0) {
+                    context.applyBlur();
+                }
+            } catch (IllegalStateException ignored) {
+            }
+        }
+
         float p = openAnimation.getValue().floatValue();
         int alpha = closing ? (int) Math.max(0, 100 * (1 - (p - 1) / 0.5f)) : (int) (100 * p);
         if (alpha > 0) {
-            Render2D.drawRect(context, 0, 0, width, height, new Color(0, 0, 0, alpha).getRGB());
+            int overlayAlpha = LiquidGlassUtil.isGlass() ? Math.min(alpha, 45) : alpha;
+            Render2D.drawRect(context, 0, 0, width, height, new Color(0, 0, 0, overlayAlpha).getRGB());
         }
 
         if (closing && openAnimation.isFinished()) {

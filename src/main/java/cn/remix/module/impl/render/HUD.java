@@ -22,6 +22,7 @@ import cn.remix.util.misc.RomanNumeralUtil;
 import cn.remix.util.player.MovementUtil;
 import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import lombok.Getter;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
@@ -198,7 +199,11 @@ public class HUD extends Module {
             int categoryHeight = categories.size() * itemHeight;
             selectorAnimation.run(current * itemHeight);
 
-            Render2D.drawRect(context, x, y, categoryWidth, categoryHeight, new Color(23, 23, 23).getRGB());
+            if (LiquidGlassUtil.isGlass()) {
+                LiquidGlassUtil.drawGlass(context, x, y, categoryWidth, categoryHeight);
+            } else {
+                Render2D.drawRect(context, x, y, categoryWidth, categoryHeight, new Color(23, 23, 23).getRGB());
+            }
             Render2D.drawGradient(context, x, y + selectorAnimation.getValue().floatValue(), categoryWidth, itemHeight, getColor(), getColor(4), true);
             for (int i = 0; i < categories.size(); i++) {
                 font16.drawStringWithShadow(context, categories.get(i).name(), x + 4, y + 1.5f + i * itemHeight, -1);
@@ -218,7 +223,11 @@ public class HUD extends Module {
             if (expandX < 1 || expandY < 1) return;
 
             float boxX = x + categoryWidth, boxY = y + current * itemHeight;
-            Render2D.drawRect(context, boxX, boxY, expandX, expandY, new Color(0, 0, 0, 180).getRGB());
+            if (LiquidGlassUtil.isGlass()) {
+                LiquidGlassUtil.drawGlass(context, boxX, boxY, expandX, expandY);
+            } else {
+                Render2D.drawRect(context, boxX, boxY, expandX, expandY, new Color(0, 0, 0, 180).getRGB());
+            }
             Render2D.beginScissor(context, boxX, boxY, expandX, expandY);
             if (expanded)
                 Render2D.drawRect(context, boxX, boxY + moduleY, width, 12, new Color(0, 0, 0, 120).getRGB());

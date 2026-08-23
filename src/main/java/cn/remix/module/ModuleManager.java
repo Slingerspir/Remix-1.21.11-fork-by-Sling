@@ -118,7 +118,10 @@ public class ModuleManager implements IMinecraft {
                 new Tas(),
                 new TpAuraPlus(),
                 new NoFall2(),
-                new DynamicIsland()
+                new DynamicIsland(),
+                new LiquidGlass(),
+                new LiquidGlow(),
+                new Title()
         );
 
         sortModules();

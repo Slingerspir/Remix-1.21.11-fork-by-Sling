@@ -5,6 +5,7 @@ import cn.remix.config.ConfigManager;
 import cn.remix.event.base.EventManager;
 import cn.remix.management.*;
 import cn.remix.module.ModuleManager;
+import cn.remix.module.impl.render.Title;
 import cn.remix.ui.clickgui.ClickGuiScreen;
 import cn.remix.ui.font.FontManager;
 import cn.remix.util.IMinecraft;
@@ -44,14 +45,11 @@ public class Client implements IMinecraft {
         indicatorManager = new IndicatorManager();
         clickGuiScreen = new ClickGuiScreen();
 
-        // ✅ 设置窗口标题（直接可用）
-        if (mc.getWindow() != null) {
-            mc.getWindow().setTitle("Remix Client Fork By Sling v" + version);
-            logger.info("Window title set to: Remix Client " + version);
-        }
+        
+        instance.getModuleManager().getModule(Title.class).apply();
 
-        // ❌ 图标无法直接设置，需要通过 Mixin 或资源包
-        // 详见下方 MixinWindow.java
+        
+        
     }
 
     public void shutdown() {

@@ -172,28 +172,28 @@ public class TokenScreen extends AbstractScreen {
         float screenWidth = this.width;
         float screenHeight = this.height;
 
-        // ===== 背景 =====
+        
         Render2D.drawTexture(context, BACKGROUND, 0, 0, screenWidth, screenHeight, 0, 0, 1, 1, 0xFFFFFFFF);
 
-        // ===== 黑色遮罩 =====
+        
         Render2D.drawRect(context, 0, 0, screenWidth, screenHeight, new Color(0, 0, 0, 70).getRGB());
 
-        // ===== 标题 =====
+        
         TrueTypeFont font50 = instance.getFontManager().getFont(50);
         float titleWidth = font50.getStringWidth("Token Manager");
         font50.drawString(context, "Token Manager", (screenWidth - titleWidth) / 2f, screenHeight / 2f - 70f, -1, false);
 
-        // ===== 状态信息 =====
+        
         TrueTypeFont font19 = instance.getFontManager().getFont(19);
         float statusWidth = font19.getStringWidth(statusMessage);
         font19.drawString(context, statusMessage, (screenWidth - statusWidth) / 2f, screenHeight / 2f - 35f, statusColor, false);
 
-        // ===== 按钮 =====
+        
         for (AdaptiveButton btn : buttons) {
             btn.render(context, mouseX, mouseY, delta);
         }
 
-        // ===== 文本框 =====
+        
         for (AdaptiveTextBox box : textBoxes) {
             box.render(context);
         }

@@ -265,51 +265,51 @@ public class InventoryManager extends Module {
         if (targetSlot == -1) return -1;
 
         switch (itemType) {
-            case 0 -> { // Weapon
+            case 0 -> { 
                 int bestSlot = ItemUtil.getBestWeaponSlot(targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 1 -> { // Pickaxe
+            case 1 -> { 
                 int bestSlot = ItemUtil.getBestToolSlot(ItemTags.PICKAXES, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 2 -> { // Axe
+            case 2 -> { 
                 int bestSlot = ItemUtil.getBestToolSlot(ItemTags.AXES, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 3 -> { // Shovel
+            case 3 -> { 
                 int bestSlot = ItemUtil.getBestToolSlot(ItemTags.SHOVELS, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 4 -> { // Block
+            case 4 -> { 
                 int bestSlot = ItemUtil.getBestBlockSlot(targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 5 -> { // Pearl
+            case 5 -> { 
                 int bestSlot = ItemUtil.getBestPearlSlot(targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 6 -> { // Projectile
+            case 6 -> { 
                 int bestSlot = ItemUtil.getBestProjectileSlot(targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 7 -> { // Bow
+            case 7 -> { 
                 int bestSlot = findBestItemSlot(Items.BOW, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 8 -> { // Fishing Rod
+            case 8 -> { 
                 int bestSlot = findBestItemSlot(Items.FISHING_ROD, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 9 -> { // Water Bucket
+            case 9 -> { 
                 int bestSlot = findBestItemSlot(Items.WATER_BUCKET, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 10 -> { // Lava Bucket
+            case 10 -> { 
                 int bestSlot = findBestItemSlot(Items.LAVA_BUCKET, targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }
-            case 11 -> { // Food
+            case 11 -> { 
                 int bestSlot = ItemUtil.getBestFoodSlot(targetSlot);
                 if (bestSlot != -1 && bestSlot != targetSlot) return bestSlot;
             }

@@ -20,7 +20,7 @@ public final class RiseShaderProgram {
         org.lwjgl.opengl.GL20.glUseProgram(0);
     }
 
-    // ✅ 添加静态方法
+    
     public static void drawQuad(float x, float y, float w, float h) {
         ShaderUtil.drawQuad(x, y, w, h);
     }

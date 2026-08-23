@@ -9,6 +9,7 @@ import cn.remix.util.animation.Easing;
 import cn.remix.util.animation.EasingAnimation;
 import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.input.CharInput;
@@ -81,13 +82,21 @@ public final class ConfigPanel extends Panel {
         var boldFont = instance.getFontManager().getBoldFont(18);
         var normFont = instance.getFontManager().getFont(16);
 
-        Render2D.drawRect(context, x, y, width, headerHeight, ColorUtil.applyAlpha(new Color(30, 26, 26).getRGB(), alphaInt));
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y, width, headerHeight);
+        } else {
+            Render2D.drawRect(context, x, y, width, headerHeight, ColorUtil.applyAlpha(new Color(30, 26, 26).getRGB(), alphaInt));
+        }
         Render2D.drawRect(context, x, y + headerHeight - 1, width, 1, ColorUtil.applyAlpha(getAccent(), alphaInt));
 
         boldFont.drawString(context, "Configs", x + 7, y + (headerHeight - boldFont.getHeight()) / 2.0f, ColorUtil.applyAlpha(Color.WHITE.getRGB(), alphaInt), false);
 
         float inputY = y + headerHeight;
-        Render2D.drawRect(context, x, inputY, width, 62, ColorUtil.applyAlpha(new Color(24, 24, 27).getRGB(), alphaInt));
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, inputY, width, 62);
+        } else {
+            Render2D.drawRect(context, x, inputY, width, 62, ColorUtil.applyAlpha(new Color(24, 24, 27).getRGB(), alphaInt));
+        }
 
         inputTextBox.setBounds(x + 4, inputY + 4, width - 8, 16);
         createButton.setBounds(x + 4, inputY + 24, width - 8, 14);
@@ -111,7 +120,11 @@ public final class ConfigPanel extends Panel {
         float totalListHeight = (float) items.stream().mapToDouble(item -> 16 * item.anim.getValue().floatValue()).sum();
         float bodyH = Math.min(totalListHeight, maxHeight);
 
-        Render2D.drawRect(context, x, listY, width, bodyH, ColorUtil.applyAlpha(new Color(22, 22, 25).getRGB(), alphaInt));
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, listY, width, bodyH);
+        } else {
+            Render2D.drawRect(context, x, listY, width, bodyH, ColorUtil.applyAlpha(new Color(22, 22, 25).getRGB(), alphaInt));
+        }
         updateScroll(totalListHeight, maxHeight);
 
         Render2D.beginScissor(context, x, listY, width, bodyH);

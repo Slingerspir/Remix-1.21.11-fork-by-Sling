@@ -4,6 +4,7 @@ import cn.remix.module.impl.render.HUD;
 import cn.remix.ui.font.MinecraftFont;
 import cn.remix.util.IMinecraft;
 import cn.remix.util.render.Render2D;
+import cn.remix.util.render.LiquidGlassUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.entity.LivingEntity;
@@ -18,8 +19,12 @@ public class Novoline implements IMinecraft {
         float healthPercent = Math.max(0.0f, Math.min(1.0f, target.getHealth() / target.getMaxHealth()));
         float width = getWidth(target);
 
-        Render2D.drawRect(context, x, y, width, getHeight(), new Color(29, 29, 29).getRGB());
-        Render2D.drawRect(context, x + 1, y + 1, width - 2, getHeight() - 2, new Color(40, 40, 40).getRGB());
+        if (LiquidGlassUtil.isGlass()) {
+            LiquidGlassUtil.drawGlass(context, x, y, width, getHeight());
+        } else {
+            Render2D.drawRect(context, x, y, width, getHeight(), new Color(29, 29, 29).getRGB());
+            Render2D.drawRect(context, x + 1, y + 1, width - 2, getHeight() - 2, new Color(40, 40, 40).getRGB());
+        }
 
         float barWidth = width - 42;
         Render2D.drawRect(context, x + 37, y + 15, barWidth, 8, 0xFF271E1D);
