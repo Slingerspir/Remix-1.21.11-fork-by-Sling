@@ -5,6 +5,7 @@ import cn.remix.module.impl.combat.TpAura;
 import cn.remix.module.impl.render.targethud.Exhibition;
 import cn.remix.module.impl.render.targethud.Novoline;
 import cn.remix.module.impl.render.targethud.Remix;
+import cn.remix.module.impl.render.targethud.Sight;
 import cn.remix.module.value.impl.ModeValue;
 import cn.remix.ui.hud.Drag;
 import cn.remix.util.animation.Easing;
@@ -14,7 +15,7 @@ import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.entity.LivingEntity;
 
 public class TargetHUD extends Drag {
-    private final ModeValue mode = new ModeValue("Mode", "Novoline", "Novoline", "Remix", "Exhibition");
+    private final ModeValue mode = new ModeValue("Mode", "Novoline", "Novoline", "Remix", "Exhibition", "Sight");
     private final EasingAnimation visibilityAnimation = new EasingAnimation(Easing.EASE_OUT_CUBIC, 220);
     private final EasingAnimation scaleAnimation = new EasingAnimation(Easing.EASE_OUT_BACK, 280);
     private LivingEntity lastTarget;
@@ -46,12 +47,14 @@ public class TargetHUD extends Drag {
         width = switch (mode.getValue()) {
             case "Exhibition" -> Exhibition.getWidth(renderTarget);
             case "Remix" -> Remix.getWidth(renderTarget);
+            case "Sight" -> Sight.getWidth(renderTarget);
             default -> Novoline.getWidth(renderTarget);
         };
 
         height = switch (mode.getValue()) {
             case "Exhibition" -> Exhibition.getHeight();
             case "Remix" -> Remix.getHeight();
+            case "Sight" -> Sight.getHeight();
             default -> Novoline.getHeight();
         };
 
@@ -65,6 +68,7 @@ public class TargetHUD extends Drag {
         switch (mode.getValue()) {
             case "Exhibition" -> Exhibition.render(context, renderTarget, renderX, renderY, alpha);
             case "Remix" -> Remix.render(context, renderTarget, renderX, renderY, alpha);
+            case "Sight" -> Sight.render(context, renderTarget, renderX, renderY, alpha);
             default -> Novoline.render(context, renderTarget, renderX, renderY, alpha);
         }
         context.getMatrices().popMatrix();
