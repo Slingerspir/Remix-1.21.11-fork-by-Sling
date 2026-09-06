@@ -3,7 +3,6 @@ name: Gradle Package
 on:
   release:
     types: [created]
-  # 添加手动触发
   workflow_dispatch:
     inputs:
       version:
@@ -38,29 +37,26 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '26'
-        distribution: 'temurin'  # 如果 26 不可用，尝试 'oracle' 或使用 toolchain
+        distribution: 'temurin'
         server-id: github
         settings-path: ${{ github.workspace }}
 
+    # 安装 Gradle（如果不使用 wrapper）
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+      with:
+        gradle-version: '9.5.0'  # 指定您的 Gradle 版本
 
     - name: Build with Gradle
       run: |
         if [ "${{ github.event.inputs.skipTests }}" == "true" ]; then
-          ./gradlew build -x test --no-daemon
+          gradle build -x test --no-daemon
         else
-          ./gradlew build --no-daemon
+          gradle build --no-daemon
         fi
-      env:
-        JAVA_HOME: ${{ env.JAVA_HOME }}
 
     - name: Publish to GitHub Packages
-      run: ./gradlew publish --no-daemon
+      run: gradle publish --no-daemon
       env:
         USERNAME: ${{ github.actor }}
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        JAVA_HOME: ${{ env.JAVA_HOME }}
