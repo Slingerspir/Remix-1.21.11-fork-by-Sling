@@ -5,33 +5,26 @@ on:
     types: [created]
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to build (e.g., v1.0.0)'
-        required: false
-        type: string
-        default: 'latest'
-      branch:
-        description: 'Branch to build'
-        required: false
-        type: string
-        default: 'main'
       skipTests:
         description: 'Skip tests'
         required: false
         type: boolean
         default: false
+      releaseTag:
+        description: 'Release tag (for manual trigger)'
+        required: false
+        type: string
+        default: 'latest'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.inputs.branch || 'main' }}
     
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -59,3 +52,23 @@ jobs:
       env:
         USERNAME: ${{ github.actor }}
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # 列出 build/libs 目录内容（调试用）
+    - name: List build/libs contents
+      run: |
+        echo "=== Files in build/libs ==="
+        ls -la build/libs/ || echo "build/libs directory not found or empty"
+
+    # 上传构建产物到 Release
+    - name: Upload artifacts to Release
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+      with:
+        files: |
+          build/libs/*.jar
+        fail_on_unmatched_files: false
+        tag_name: ${{ github.event.release.tag_name || github.event.inputs.releaseTag || github.ref_name }}
+        generate_release_notes: true
+        make_latest: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
