@@ -18,6 +18,8 @@ import cn.remix.util.network.PacketUtil;
 import cn.remix.util.player.EntityUtil;
 import cn.remix.util.player.RayCastUtil;
 import cn.remix.util.player.RotationUtil;
+import cn.remix.event.impl.Render3DEvent;
+import cn.remix.util.render.Render3D;
 import lombok.Getter;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
@@ -50,8 +52,13 @@ public class Aura extends Module {
     private final NumberValue derpPitch = new NumberValue("Derp Pitch", 30.0f, -40.0f, 40.0f, 1.0f, () -> rotationMode.is("Derp"));
     private final ModeValue autoBlockMode = new ModeValue("AutoBlock Mode", "None", "None", "Fake", "Use Item", "Vanilla");
     private final NumberValue rotationSpeed = new NumberValue("Rotation Speed", 180, 0, 180, 5);
-    private final ModeValue movementFixMode = new ModeValue("MovementFix Mode", "None", "None", "Silent", "Strict");
+    private final ModeValue movementFixMode = new ModeValue("MovementFix Mode", "Silent", "None", "Silent", "Strict");
     private final BoolValue rayCast = new BoolValue("Ray Cast", false);
+    private final BoolValue keepSprint = new BoolValue("Keep Sprint", true);
+    private final BoolValue multiAttack = new BoolValue("Multi Attack", false);
+    private final BoolValue preferBaby = new BoolValue("Prefer Baby", false);
+    private final BoolValue moreParticles = new BoolValue("More Particles", false);
+    private final BoolValue targetEsp = new BoolValue("Target ESP", true);
     private final List<LivingEntity> targets = new ArrayList<>();
     private final TimerUtil switchTimer = new TimerUtil();
     private final TimerUtil attackTimer = new TimerUtil();
@@ -111,8 +118,27 @@ public class Aura extends Module {
                     doAttack(target);
                     attackTimer.reset();
                 }
+
+                if (multiAttack.getValue()) {
+                    int attacked = 0;
+                    for (LivingEntity extra : targets) {
+                        if (extra == target || attacked >= 2) break;
+                        if (canAttack(extra)) {
+                            doAttack(extra);
+                            attacked++;
+                        }
+                    }
+                }
             }
         }
+    }
+
+    @EventTarget
+    public void onRender3D(Render3DEvent event) {
+        if (!targetEsp.getValue() || mc.player == null || mc.world == null) return;
+        if (target == null || !target.isAlive() || target.isDead()) return;
+
+        Render3D.drawOutlinedBox(event.getMatrixStack(), target.getBoundingBox(), 2.0, 0x80FF3333, false);
     }
 
     @EventTarget
@@ -216,6 +242,16 @@ public class Aura extends Module {
         instance.getEventManager().call(event);
         mc.interactionManager.attackEntity(mc.player, entity);
         mc.player.swingHand(Hand.MAIN_HAND);
+
+        if (keepSprint.getValue()) {
+            mc.player.setSprinting(true);
+        }
+
+        if (moreParticles.getValue() && mc.world != null) {
+            mc.world.addParticleClient(net.minecraft.particle.ParticleTypes.CRIT, false, false,
+                    entity.getX(), entity.getY() + entity.getHeight() / 2.0, entity.getZ(),
+                    (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5);
+        }
     }
 
     private void doBlock() {
@@ -274,13 +310,18 @@ public class Aura extends Module {
     }
 
     public Comparator<LivingEntity> sortTargets(final String priority) {
-        return switch (priority) {
+        Comparator<LivingEntity> base = switch (priority) {
             case "Health" -> Comparator.comparingDouble(entity -> entity.getHealth() + entity.getAbsorptionAmount());
             case "Fov" -> Comparator.comparingDouble(RotationUtil::getRotationDifference);
             case "LivingTime" -> Comparator.comparingInt((LivingEntity entity) -> entity.age).reversed();
             case "Armor" -> Comparator.comparingInt(LivingEntity::getArmor);
             default -> Comparator.comparingDouble(RotationUtil::getDistanceToEntity);
         };
+
+        if (preferBaby.getValue()) {
+            return base.thenComparing(e -> e.isBaby() ? 0 : 1);
+        }
+        return base;
     }
 
     public boolean filter(LivingEntity entity) {

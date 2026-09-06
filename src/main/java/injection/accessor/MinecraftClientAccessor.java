@@ -20,4 +20,7 @@ public interface MinecraftClientAccessor {
 
     @Invoker("getWindowTitle")
     String invokeGetWindowTitle();
+
+    @Invoker("doAttack")
+    boolean invokeDoAttack();
 }

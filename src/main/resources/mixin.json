@@ -26,6 +26,7 @@
     "MixinLivingEntity",
     "MixinLivingEntityRenderer",
     "MixinMinecraftClient",
+    "MixinMouse",
     "MixinNetworkThreadUtils",
     "MixinPlayerEntity",
     "MixinServerPlayerInteractionManager",

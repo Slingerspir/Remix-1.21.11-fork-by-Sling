@@ -12,6 +12,7 @@ public class AntiBot extends Module {
     private final BoolValue entityID = new BoolValue("EntityID",  false);
     private final BoolValue sleep = new BoolValue("Sleep", false);
     private final BoolValue sentinel = new BoolValue("Sentinel", false);
+    private final BoolValue tabList = new BoolValue("Tab List", true);
 
     public AntiBot() {
         super("AntiBot", Category.Player);
@@ -31,6 +32,11 @@ public class AntiBot extends Module {
             }
 
             if (sentinel.getValue() && (entity.getWidth() <= 0.3f || entity.getHeight() <= 0.3f)) {
+                return true;
+            }
+
+            if (tabList.getValue() && mc.getNetworkHandler() != null
+                    && mc.getNetworkHandler().getPlayerListEntry(player.getUuid()) == null) {
                 return true;
             }
 

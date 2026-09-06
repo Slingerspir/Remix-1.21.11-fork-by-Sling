@@ -118,7 +118,7 @@ public class Backtrack extends Module {
                 if (entry == null) break;
                 if (now - entry.getTimestamp() >= currentDelay) {
                     packetQueue.poll();
-                    PacketUtil.sendPacketNoEvent(entry.getPacket());
+                    PacketUtil.receivePacketNoEvent(entry.getPacket());
                 } else {
                     break;
                 }
@@ -279,7 +279,7 @@ public class Backtrack extends Module {
         while (!packetQueue.isEmpty()) {
             PacketEntry entry = packetQueue.poll();
             if (entry != null) {
-                PacketUtil.sendPacketNoEvent(entry.getPacket());
+                PacketUtil.receivePacketNoEvent(entry.getPacket());
             }
         }
     }

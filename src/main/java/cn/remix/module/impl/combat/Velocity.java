@@ -16,6 +16,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.EntityDamageS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.EntityHitResult;
@@ -24,14 +25,16 @@ import net.minecraft.util.math.Vec3d;
 
 @Getter
 public class Velocity extends Module {
-    private final ModeValue mode = new ModeValue("Mode", "Normal", "Normal", "Packet", "Reduce");
+    private final ModeValue mode = new ModeValue("Mode", "Normal", "Normal", "Packet", "Reduce", "JumpReset", "heypixel");
     private final NumberValue horizontal = new NumberValue("Horizontal", 0, 0, 100, 1, () -> mode.is("Packet"));
     private final NumberValue vertical = new NumberValue("Vertical", 0, 0, 100, 1, () -> mode.is("Packet"));
     private LivingEntity attackTarget = null;
     private boolean jump = false;
+    private boolean forward = false;
     private boolean attacking;
     private int reduceTicks;
     private int resetTicks;
+    private int hurtWindowTicks;
 
     public Velocity() {
         super("Velocity", Category.Combat);
@@ -58,6 +61,8 @@ public class Velocity extends Module {
         reduceTicks = 0;
         resetTicks = 0;
         jump = false;
+        forward = false;
+        hurtWindowTicks = 0;
     }
 
     @EventTarget
@@ -68,6 +73,10 @@ public class Velocity extends Module {
             event.setJumping(true);
             jump = false;
         }
+        if (forward) {
+            event.setForward(1);
+            forward = false;
+        }
     }
 
     @EventTarget
@@ -76,8 +85,20 @@ public class Velocity extends Module {
         setSuffix(mode.getValue());
         Packet<?> packet = event.getPacket();
         if (event.getType() == PacketEvent.Type.Received) {
+            if (mode.is("heypixel") && packet instanceof EntityDamageS2CPacket damage) {
+                if (damage.entityId() == mc.player.getId()) {
+                    hurtWindowTicks = 3;
+                }
+            }
             if (packet instanceof EntityVelocityUpdateS2CPacket velocity) {
                 if (velocity.getEntityId() == mc.player.getId()) {
+                    if (mode.is("heypixel")) {
+                        if (hurtWindowTicks > 0) {
+                            hurtWindowTicks--;
+                            event.setCancelled(true);
+                        }
+                        return;
+                    }
                     switch (mode.getValue()) {
                         case "Normal" ->
                                 event.setCancelled(true);
@@ -109,6 +130,23 @@ public class Velocity extends Module {
     @EventTarget
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.interactionManager == null) return;
+
+        if (mode.is("heypixel")) {
+            if (hurtWindowTicks > 0) hurtWindowTicks--;
+            return;
+        }
+
+        if (mode.is("JumpReset")) {
+            int hurt = mc.player.hurtTime;
+            if (hurt >= 8) {
+                jump = true;
+                forward = true;
+            } else if (hurt < 7 && hurt > 0) {
+                jump = false;
+                forward = false;
+            }
+            return;
+        }
 
         if (mode.is("Reduce")) {
             if (resetTicks > 0) {

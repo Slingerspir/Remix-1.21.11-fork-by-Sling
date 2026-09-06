@@ -3,6 +3,7 @@ package injection;
 import cn.remix.event.impl.Render2DEvent;
 import cn.remix.module.impl.render.Crosshair;
 import cn.remix.module.impl.render.HUD;
+import cn.remix.module.impl.render.NoRender;
 import cn.remix.util.IMinecraft;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
@@ -49,7 +50,8 @@ public abstract class MixinInGameHud implements IMinecraft {
     @Inject(method = "renderStatusEffectOverlay", at = @At("HEAD"), cancellable = true)
     private void renderStatusEffectOverlay(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         HUD hud = instance.getModuleManager().getModule(HUD.class);
-        if (hud.isEnabled() && hud.getNoPotionIcons().getValue()) {
+        NoRender noRender = instance.getModuleManager().getModule(NoRender.class);
+        if ((hud.isEnabled() && hud.getNoPotionIcons().getValue()) || (noRender.isEnabled() && noRender.getHidePotionIcons().getValue())) {
             ci.cancel();
         }
     }

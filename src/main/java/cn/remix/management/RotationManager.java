@@ -5,6 +5,7 @@ import cn.remix.event.base.annotation.EventTarget;
 import cn.remix.event.impl.*;
 import cn.remix.management.movement.MovementCorrection;
 import cn.remix.module.impl.combat.Aura;
+import cn.remix.module.impl.combat.AutoMace;
 import cn.remix.module.impl.player.AntiLava;
 import cn.remix.module.impl.player.Derp;
 import cn.remix.module.impl.world.Scaffold;
@@ -12,8 +13,6 @@ import cn.remix.util.IMinecraft;
 import cn.remix.util.Util;
 import cn.remix.util.player.MovementUtil;
 import cn.remix.util.player.RotationUtil;
-import injection.accessor.PlayerMoveC2SPacketAccessor;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 
 
 public class RotationManager implements IMinecraft {
@@ -43,6 +42,7 @@ public class RotationManager implements IMinecraft {
         if (mc.player == null) return;
 
         Aura aura = instance.getModuleManager().getModule(Aura.class);
+        AutoMace autoMace = instance.getModuleManager().getModule(AutoMace.class);
         Scaffold scaffold = instance.getModuleManager().getModule(Scaffold.class);
         AntiLava antiLava = instance.getModuleManager().getModule(AntiLava.class);
         Derp derp = instance.getModuleManager().getModule(Derp.class);
@@ -53,6 +53,8 @@ public class RotationManager implements IMinecraft {
             setRotations(antiLava.getRotations(), 180, antiLava.getMovementFix().getValue() ? MovementCorrection.Silent : MovementCorrection.None);
         } else if (scaffold.isEnabled() && scaffold.isCanRotation() && scaffold.getRotations() != null) {
             setRotations(scaffold.getRotations(), scaffold.getRotationSpeed(), scaffold.getMovementFix().getValue() ? MovementCorrection.Silent : MovementCorrection.None);
+        } else if (autoMace.isEnabled() && autoMace.getSilentAim().getValue() && autoMace.getTarget() != null && autoMace.getRotations() != null) {
+            setRotations(autoMace.getRotations(), autoMace.getRotationSpeedDegrees(), autoMace.getMovementFixMode().is("None") ? MovementCorrection.None : (autoMace.getMovementFixMode().is("Silent") ? MovementCorrection.Silent : MovementCorrection.Strict));
         } else if (aura.isEnabled() && aura.getTarget() != null && aura.getRotations() != null) {
             setRotations(aura.getRotations(), aura.getRotationSpeed().getValue(), aura.getMovementFixMode().is("None") ? MovementCorrection.None : (aura.getMovementFixMode().is("Silent") ? MovementCorrection.Silent : MovementCorrection.Strict));
         } else if (derp.isEnabled() && derp.getRotations() != null) {
@@ -64,17 +66,6 @@ public class RotationManager implements IMinecraft {
         lastRotations = currentRotations;
         currentRotations = RotationUtil.getSmoothRotation(lastRotations, targetRotations, rotationSpeed + Math.random());
         mc.gameRenderer.updateCrosshairTarget(1.0f);
-    }
-
-    @EventTarget
-    @EventPriority(0)
-    public void onPacket(PacketEvent packetEvent) {
-        if (packetEvent.getPacket() instanceof PlayerMoveC2SPacket movePacket) {
-            float yaw = movePacket.getYaw(0);
-            if (yaw < 360 && yaw > -360) {
-                ((PlayerMoveC2SPacketAccessor) movePacket).setYaw(yaw + 720);
-            }
-        }
     }
 
     @EventTarget

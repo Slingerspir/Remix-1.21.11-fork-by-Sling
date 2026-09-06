@@ -101,6 +101,23 @@ public final class Render2D implements IMinecraft {
         drawRect(context, x + width - thickness, y + thickness, thickness, height - thickness - thickness, color);
     }
 
+    public void drawLine(DrawContext context, float x1, float y1, float x2, float y2, float thickness, int color) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.001f) return;
+
+        float px = -dy / len * thickness / 2.0f;
+        float py = dx / len * thickness / 2.0f;
+
+        drawQuad(context,
+                x1 + px, y1 + py,
+                x2 + px, y2 + py,
+                x2 - px, y2 - py,
+                x1 - px, y1 - py,
+                color);
+    }
+
     public static void beginScissor(DrawContext context, float x, float y, float width, float height) {
         context.enableScissor((int) x, (int) y, (int) (x + width), (int) (y + height));
     }

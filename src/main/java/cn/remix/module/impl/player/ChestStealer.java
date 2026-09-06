@@ -46,6 +46,8 @@ public class ChestStealer extends Module {
     private final NumberValue minDelay = new NumberValue("Min Delay", 30, 0, 200, 5);
     private final NumberValue maxDelay = new NumberValue("Max Delay", 80, 0, 300, 5);
     private final BoolValue randomizeOrder = new BoolValue("Randomize Order", true);
+    private final BoolValue titleFilter = new BoolValue("Title Filter", false);
+    private final BoolValue pickEnderChest = new BoolValue("Ender Chest", false);
     private final NumberValue pauseChance = new NumberValue("Pause Chance", 15, 0, 50, 5);
 
     private final TimerUtil clickTimer = new TimerUtil();
@@ -207,6 +209,9 @@ public class ChestStealer extends Module {
         if (event.isPost()) return;
 
         if (mc.currentScreen instanceof GenericContainerScreen container) {
+            if (titleFilter.getValue() && !isValidChestTitle(container.getTitle().getString())) {
+                return;
+            }
             if (!openTimer.hasTimeElapsed(openDelay.getValue().longValue())) return;
 
             GenericContainerScreenHandler handler = container.getScreenHandler();
@@ -220,6 +225,13 @@ public class ChestStealer extends Module {
             openTimer.reset();
             resetState();
         }
+    }
+
+    private boolean isValidChestTitle(String title) {
+        String lower = title.toLowerCase();
+        boolean isEnder = lower.contains("ender");
+        if (isEnder && !pickEnderChest.getValue()) return false;
+        return lower.contains("chest") || lower.contains("大箱子") || lower.contains("末影") || isEnder;
     }
 
     private void stealNormal(GenericContainerScreenHandler handler) {

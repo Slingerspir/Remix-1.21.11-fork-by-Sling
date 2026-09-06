@@ -2,6 +2,7 @@ package cn.remix.util.player;
 
 import cn.remix.module.impl.player.InventoryManager;
 import cn.remix.util.IMinecraft;
+import cn.remix.util.network.PacketUtil;
 import lombok.experimental.UtilityClass;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifiersComponent;
@@ -12,10 +13,12 @@ import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.*;
+import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 
 @UtilityClass
 public class ItemUtil implements IMinecraft {
@@ -533,5 +536,106 @@ public class ItemUtil implements IMinecraft {
 
     private boolean isGoldenApple(ItemStack stack) {
         return stack != null && !stack.isEmpty() && (stack.getItem() == Items.GOLDEN_APPLE || stack.getItem() == Items.ENCHANTED_GOLDEN_APPLE);
+    }
+
+    public boolean isMace(ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.isOf(Items.MACE);
+    }
+
+    public float getMaceScore(ItemStack stack) {
+        if (!isMace(stack)) return -1.0F;
+
+        float score = 0.0F;
+        ItemEnchantmentsComponent enchantments = stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
+        if (enchantments != null && !enchantments.isEmpty()) {
+            for (RegistryEntry<Enchantment> entry : enchantments.getEnchantments()) {
+                int level = enchantments.getLevel(entry);
+                if (entry.matchesKey(Enchantments.DENSITY)) {
+                    score += level * 4.0F;
+                } else if (entry.matchesKey(Enchantments.WIND_BURST)) {
+                    score += level * 3.0F;
+                } else if (entry.matchesKey(Enchantments.BREACH)) {
+                    score += level * 2.0F;
+                } else if (entry.matchesKey(Enchantments.SMITE)) {
+                    score += level * 1.5F;
+                } else if (entry.matchesKey(Enchantments.BANE_OF_ARTHROPODS)) {
+                    score += level * 1.5F;
+                } else if (entry.matchesKey(Enchantments.UNBREAKING)) {
+                    score += level * 0.1F;
+                } else if (entry.matchesKey(Enchantments.MENDING)) {
+                    score += level * 0.5F;
+                }
+            }
+        }
+
+        float maxDamage = stack.getMaxDamage();
+        if (maxDamage > 0) {
+            score += (maxDamage - stack.getDamage()) / maxDamage * 0.1F;
+        }
+
+        return score;
+    }
+
+    public int getBestMaceSlot(int targetSlot) {
+        if (mc.player == null) return -1;
+        int bestSlot = -1;
+        float bestScore = -1.0F;
+
+        for (Slot slot : mc.player.currentScreenHandler.slots) {
+            if (slot.inventory == mc.player.getInventory()) {
+                if (slot.hasStack() && isMace(slot.getStack())) {
+                    float score = getMaceScore(slot.getStack());
+                    if (isBetterSlot(score, slot.id, bestScore, bestSlot, targetSlot)) {
+                        bestScore = score;
+                        bestSlot = slot.id;
+                    }
+                }
+            }
+        }
+        return bestSlot;
+    }
+
+    public int getBestMaceSlot() {
+        return getBestMaceSlot(-1);
+    }
+
+    public int getBestElytraSlot() {
+        if (mc.player == null) return -1;
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.currentScreenHandler.getSlot(i);
+            if (slot.hasStack() && slot.getStack().isOf(Items.ELYTRA)) return i;
+        }
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.currentScreenHandler.getSlot(i);
+            if (slot.hasStack() && slot.getStack().isOf(Items.ELYTRA)) return i;
+        }
+        return -1;
+    }
+
+    public int findItemSlot(Item item) {
+        if (mc.player == null) return -1;
+        for (int i = 36; i <= 44; i++) {
+            Slot slot = mc.player.currentScreenHandler.getSlot(i);
+            if (slot.hasStack() && slot.getStack().isOf(item)) return i;
+        }
+        for (int i = 9; i <= 35; i++) {
+            Slot slot = mc.player.currentScreenHandler.getSlot(i);
+            if (slot.hasStack() && slot.getStack().isOf(item)) return i;
+        }
+        return -1;
+    }
+
+    public void switchToSlot(int slot) {
+        if (mc.player == null || slot < 9 || slot > 44) return;
+
+        int selected = mc.player.getInventory().getSelectedSlot();
+        if (slot >= 36) {
+            if (slot - 36 != selected) {
+                mc.player.getInventory().setSelectedSlot(slot - 36);
+                PacketUtil.sendPacketNoEvent(new UpdateSelectedSlotC2SPacket(slot - 36));
+            }
+        } else if (selected >= 0 && selected <= 8) {
+            mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, slot, selected, SlotActionType.SWAP, mc.player);
+        }
     }
 }

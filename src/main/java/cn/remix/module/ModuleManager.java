@@ -5,14 +5,20 @@ import cn.remix.event.base.annotation.EventTarget;
 import cn.remix.event.impl.KeyInputEvent;
 import cn.remix.module.impl.combat.*;
 import cn.remix.module.impl.exploits.Disabler;
+import cn.remix.module.impl.exploits.ECDisabler;
 import cn.remix.module.impl.exploits.Phase;
 import cn.remix.module.impl.exploits.Regen;
 import cn.remix.module.impl.exploits.ResetVL;
 import cn.remix.module.impl.misc.AntiCheatDetect;
+import cn.remix.module.impl.misc.AntiFireball;
 import cn.remix.module.impl.misc.BetterChat;
 import cn.remix.module.impl.misc.BetterTab;
 import cn.remix.module.impl.misc.ClientSpoof;
+import cn.remix.module.impl.misc.KillSay;
+import cn.remix.module.impl.misc.MusicPlayer;
 import cn.remix.module.impl.misc.NameProtect;
+import cn.remix.module.impl.misc.Panic;
+import cn.remix.module.impl.misc.Spammer;
 import cn.remix.module.impl.move.*;
 import cn.remix.module.impl.player.*;
 import cn.remix.module.impl.render.*;
@@ -65,6 +71,8 @@ public class ModuleManager implements IMinecraft {
                 new NoSlowDown(),
                 new NoFall(),
                 new AntiVoid(),
+                new Blink(),
+                new ECFly(),
                 new LegitNoFall(),
                 new ModuleList(),
                 new Speed(),
@@ -105,6 +113,7 @@ public class ModuleManager implements IMinecraft {
                 new Backtrack(),
                 new ResetVL(),
                 new Phase(),
+                new ECDisabler(),
                 new ChestGUI(),
                 new MouseLock(),
                 new BetterChat(),
@@ -112,16 +121,43 @@ public class ModuleManager implements IMinecraft {
                 new BetterTab(),
                 new AirJump(),
                 new AntiCheatDetect(),
+                new AntiFireball(),
                 new ClientSpoof(),
+                new Panic(),
+                new KillSay(),
+                new Spammer(),
+                new MusicPlayer(),
                 new FlyPlus(),
                 new Timer(),
                 new Tas(),
                 new TpAuraPlus(),
+                new AutoMace(),
+                new SwordPearl(),
+                new ActionRecorder(),
+                new AimAssist(),
+                new AutoHeal(),
+                new AutoClicker(),
+                new AttackCrystal(),
+                new SnowballAura(),
+                new MacePVP(),
                 new NoFall2(),
                 new DynamicIsland(),
                 new LiquidGlass(),
                 new LiquidGlow(),
-                new Title()
+                new Title(),
+                new Compass(),
+                new EffectDisplay(),
+                new ItemTags(),
+                new NameTags(),
+                new TimeChanger(),
+                new Glow(),
+                new TargetESP(),
+                new TargetGlow(),
+                new SongInfo(),
+                new Projectile(),
+                new AntiBlindness(),
+                new AntiNausea(),
+                new NoRender()
         );
 
         sortModules();

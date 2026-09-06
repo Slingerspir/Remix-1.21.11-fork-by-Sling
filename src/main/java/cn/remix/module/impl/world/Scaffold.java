@@ -33,6 +33,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 import java.awt.*;
@@ -40,7 +41,7 @@ import java.awt.*;
 @Getter
 public class Scaffold extends Module {
     public static NumberValue delay = new NumberValue("Delay", 0, 0, 200, 10);
-    private final ModeValue mode = new ModeValue("Mode", "Normal", "Normal", "Telly Bridge");
+    private final ModeValue mode = new ModeValue("Mode", "Normal", "Normal", "Telly Bridge", "Native", "Heypixel");
     private final NumberValue tellyTick = new NumberValue("Telly Tick", 1, 1, 5, 1, () -> !mode.is("Normal"));
     private final ModeValue rotationMode = new ModeValue("Rotation Mode", "Normal", "Normal", "Facing", "Hit Vec", "Nearest", "Hypixel");
     private final NumberValue shrink = new NumberValue("Shrink", .1f, 0, .45f, .01f, () -> rotationMode.is("Nearest") || rotationMode.is("Hypixel"));
@@ -74,6 +75,9 @@ public class Scaffold extends Module {
     private long lastRenderFrameTime;
     private int displayedBlocks = -1;
     private int previousBlocks = -1;
+    private int blocksPlaced;
+    private int bps;
+    private long lastBpsReset = System.currentTimeMillis();
 
     public Scaffold() {
         super("Scaffold", Category.World);
@@ -190,6 +194,8 @@ public class Scaffold extends Module {
         }
 
         font.drawStringWithShadow(context, suffix, x + digitWidth * 3.0f + 2.0f, y, color);
+
+        font.drawStringWithShadow(context, bps + " b/s", x, y + digitHeight + 2.0f, ColorUtil.applyAlpha(-1, alphaInt));
     }
 
     @EventTarget
@@ -242,9 +248,17 @@ public class Scaffold extends Module {
         switch (mode.getValue()) {
             case "Normal" -> canRotation = canPlace = true;
             case "Telly Bridge" -> canRotation = canPlace = Util.offGroundTicks >= tellyTick.getValue().intValue() || !MovementUtil.isMoving();
+            case "Native", "Heypixel" -> {
+                canRotation = false;
+                canPlace = true;
+            }
         }
 
         if (canPlace && data != null) {
+            if ((mode.is("Native") || mode.is("Heypixel")) && !isAimed(data.blockPos())) {
+                return;
+            }
+
             boolean rayCast = true;
             if (this.rayCast.getValue()) {
                 rayCast = RayCastUtil.overBlock(data.blockPos(), data.facing(), false);
@@ -263,6 +277,12 @@ public class Scaffold extends Module {
     public void onLivingUpdate(LivingUpdateEvent e) {
         if (mc.player == null || mc.world == null || data == null) return;
 
+        if (mode.is("Native")) {
+            applyNativeRotation(RotationUtil.getRotations(data.blockPos()));
+            rotations = null;
+            return;
+        }
+
         switch (rotationMode.getValue()) {
             case "Normal" -> rotations = RotationUtil.getRotations(data.blockPos());
             case "Hit Vec" -> rotations = RotationUtil.getRotations(getVec(data.blockPos(), data.facing()));
@@ -275,12 +295,38 @@ public class Scaffold extends Module {
         if (mc.player == null || mc.world == null || mc.interactionManager == null) return;
 
         if (mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, new BlockHitResult(hitVec, facing, pos, false)) == ActionResult.SUCCESS) {
+            blocksPlaced++;
+            long now = System.currentTimeMillis();
+            if (now - lastBpsReset >= 1000) {
+                bps = (int) Math.round(blocksPlaced * 1000.0 / (now - lastBpsReset));
+                blocksPlaced = 0;
+                lastBpsReset = now;
+            }
             if (noSwing.getValue()) {
                 PacketUtil.sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
             } else {
                 mc.player.swingHand(Hand.MAIN_HAND);
             }
         }
+    }
+
+    private void applyNativeRotation(float[] target) {
+        if (target == null) return;
+
+        float speed = rotationSpeed.getValue();
+        float yawDelta = MathHelper.wrapDegrees(target[0] - mc.player.getYaw());
+        float pitchDelta = MathHelper.wrapDegrees(target[1] - mc.player.getPitch());
+        mc.player.setYaw(mc.player.getYaw() + MathHelper.clamp(yawDelta, -speed, speed));
+        mc.player.setPitch(MathHelper.clamp(mc.player.getPitch() + MathHelper.clamp(pitchDelta, -speed, speed), -90, 90));
+    }
+
+    private boolean isAimed(BlockPos pos) {
+        float[] need = RotationUtil.getRotations(pos);
+        if (need == null) return false;
+
+        float yawDiff = Math.abs(MathHelper.wrapDegrees(mc.player.getYaw() - need[0]));
+        float pitchDiff = Math.abs(MathHelper.wrapDegrees(mc.player.getPitch() - need[1]));
+        return yawDiff < 12 && pitchDiff < 12;
     }
 
     public double getYLevel() {

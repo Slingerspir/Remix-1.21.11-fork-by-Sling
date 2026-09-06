@@ -43,6 +43,7 @@ public class Client implements IMinecraft {
         fontManager = new FontManager();
         packetManager = new PacketManager();
         indicatorManager = new IndicatorManager();
+        MusicManager.init();
         clickGuiScreen = new ClickGuiScreen();
 
         
