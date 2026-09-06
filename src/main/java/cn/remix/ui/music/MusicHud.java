@@ -389,9 +389,9 @@ public final class MusicHud implements IMinecraft {
 
     private void drawLyrics(DrawContext ctx, MusicManager m, float a, double progress) {
         Render2D.setGlobalAlpha(a);
-        float lyrTop = hudY + 54 + 18;
-        float lyrH = hudH - 54 - 18 - 26;
-        float lyrCy = hudY + 54 + lyrH / 2;
+        float lyrTop = hudY + 54 + 14;
+        float lyrH = hudH - 54 - 14 - 26;
+        float lyrCy = hudY + 54 + lyrH * 0.46f; // 位置偏高一点
         float maxW = rightW - 20;
 
         if (m.getLyrics().isEmpty()) {
@@ -403,10 +403,10 @@ public final class MusicHud implements IMinecraft {
         }
 
         int active = activeLine(m, progress);
-        int baseSize = (int) Math.max(22, Math.min(34, rightW / 16));
+        int baseSize = (int) Math.max(24, Math.min(36, rightW / 15));
         TrueTypeFont baseFont = instance.getFontManager().getFont(baseSize);
-        lyricRowH = baseFont.getHeight() + (showTrans ? 22 : 10);
-        // 限制最多显示行数，避免高屏时歌词铺满整页
+        lyricRowH = baseFont.getHeight() + (showTrans ? 14 : 6);
+        // 限制最多显示行数
         int half = Math.max(2, Math.min(6, (int) (lyrH / lyricRowH / 2)));
         int from = Math.max(0, (int) Math.floor(anchor) - half - 1);
         int to = Math.min(m.getLyrics().size() - 1, (int) Math.ceil(anchor) + half + 1);
@@ -426,7 +426,7 @@ public final class MusicHud implements IMinecraft {
             String text = m.getLyrics().get(i).getText();
             if (text == null || text.isEmpty()) continue;
             int dist = Math.abs(i - active);
-            int size = cur ? baseSize : Math.max(15, baseSize - 5);
+            int size = cur ? baseSize : Math.max(14, baseSize - 7);
             TrueTypeFont f = instance.getFontManager().getFont(size);
             float sw0 = f.getStringWidth(text);
             if (sw0 > maxW) {
@@ -435,13 +435,15 @@ public final class MusicHud implements IMinecraft {
                 sw0 = f.getStringWidth(text);
             }
             float x = rightX + (rightW - sw0) / 2;
-            float alpha = cur ? 1f : Math.max(0.28f, 0.92f - dist * 0.15f);
+            float alpha = cur ? 1f : Math.max(0.20f, 0.95f - dist * 0.20f);
 
             if (cur) {
-                square(ctx, x - 12, y - 5, sw0 + 24, f.getHeight() + 14, 0, ColorUtil.applyAlpha(C_CUR, (int) (60 * alpha + 20)));
+                square(ctx, x - 12, y - 5, sw0 + 24, f.getHeight() + 14, 0, ColorUtil.applyAlpha(C_CUR, 210));
+                // 伪粗体：双层错位描边
+                f.drawString(ctx, text, x - 0.6f, y - 0.6f, ColorUtil.applyAlpha(0xFF86C9A8, (int) (255 * alpha)));
                 f.drawStringWithShadow(ctx, text, x, y, ColorUtil.applyAlpha(C_TEXT, (int) (255 * alpha)));
             } else {
-                f.drawStringWithShadow(ctx, text, x, y, ColorUtil.applyAlpha(0xFF6B788A, (int) (255 * alpha)));
+                f.drawStringWithShadow(ctx, text, x, y, ColorUtil.applyAlpha(0xFFA9B4C2, (int) (255 * alpha)));
             }
 
             if (cur && showTrans) {

@@ -161,69 +161,74 @@ public final class MusicPlayer extends Module {
         }
         if (active < 0 || active >= m.getLyrics().size()) return;
 
-        // 限制：最多 当前 + 上方 2 行 + 1 行翻译，互不重叠
+        // 平滑滑动（continuous anchor）
+        long now = System.currentTimeMillis();
+        float dt = Math.min(0.05f, (now - mLastMs) / 1000f);
+        mLastMs = now;
+        if (mGen != m.getGeneration()) {
+            mGen = m.getGeneration();
+            mAnchor = -1;
+        }
+        if (mAnchor < 0) mAnchor = active;
+        mAnchor += (active - mAnchor) * Math.min(1f, dt * 12f);
+
         float sw = mc.getWindow().getScaledWidth();
         float sh = mc.getWindow().getScaledHeight();
-        float maxW = Math.min(sw * 0.76f, 620);
-        int size = Math.max(20, Math.min(28, (int) (maxW / 26)));
-        TrueTypeFont font = instance.getFontManager().getFont(size);
-        TrueTypeFont transFont = instance.getFontManager().getFont(15);
+        float maxW = Math.min(sw * 0.8f, 640);
+        int base = Math.max(20, Math.min(26, (int) (maxW / 26)));
+        TrueTypeFont big = instance.getFontManager().getFont(base);
+        TrueTypeFont transFont = instance.getFontManager().getFont(14);
 
-        String curText = m.getLyrics().get(active).getText();
-        String tr = translation.getValue() ? m.translationAt(m.getLyrics().get(active).getTime()) : null;
-        if ((curText == null || curText.isEmpty()) && tr == null) return;
+        // 当前行位置略高
+        float rowH = base + 8f;
+        float cy = sh - 118;
 
-        TrueTypeFont useF = font;
-        float cw = useF.getStringWidth(curText == null ? "" : curText);
-        if (curText != null && cw > maxW) {
-            int ns = Math.max(12, (int) (size * maxW / cw));
-            useF = instance.getFontManager().getFont(ns);
-            cw = useF.getStringWidth(curText);
-        }
-        float transH = (tr != null && !tr.isEmpty()) ? transFont.getHeight() + 5 : 0;
+        int from = Math.max(0, (int) Math.floor(mAnchor) - 3);
+        int to = Math.min(m.getLyrics().size() - 1, (int) Math.ceil(mAnchor) + (translation.getValue() ? 1 : 2));
 
-        // 当前行基线：给翻译留出空间，底部不压到快捷栏
-        float activeY = sh - 26 - useF.getHeight() - transH - 4;
-        if (activeY < sh * 0.3f) activeY = sh * 0.3f;
+        for (int i = from; i <= to; i++) {
+            String text = m.getLyrics().get(i).getText();
+            if (text == null || text.isEmpty()) continue;
+            boolean cur = i == active;
+            int dist = Math.abs(i - active);
+            float y = cy + (float) (i - mAnchor) * rowH;
+            if (y < sh * 0.10f || y > sh - 28) continue;
 
-        // 上方最多 2 行淡出的历史行
-        int prev = Math.min(2, active);
-        float rowUp = size + 10f;
-        for (int k = prev; k >= 1; k--) {
-            int idx = active - k;
-            String txt = m.getLyrics().get(idx).getText();
-            if (txt == null || txt.isEmpty()) continue;
-            float yy = activeY - rowUp * k;
-            if (yy < sh * 0.12f) continue;
-            TrueTypeFont pf = instance.getFontManager().getFont(Math.max(14, size - 5));
-            float pw0 = pf.getStringWidth(txt);
-            if (pw0 > maxW) {
-                int ns = Math.max(11, (int) (size * maxW / pw0));
-                pf = instance.getFontManager().getFont(ns);
-                pw0 = pf.getStringWidth(txt);
+            TrueTypeFont use = cur ? big : instance.getFontManager().getFont(Math.max(13, base - 6));
+            float w0 = use.getStringWidth(text);
+            if (w0 > maxW) {
+                int ns = Math.max(11, (int) (base * maxW / w0));
+                use = instance.getFontManager().getFont(ns);
+                w0 = use.getStringWidth(text);
             }
-            float px = sw / 2f - pw0 / 2f;
-            float alpha = Math.max(0.16f, 0.55f - (k - 1) * 0.18f);
-            pf.drawStringWithShadow(event.getContext(), txt, px, yy, ColorUtil.applyAlpha(0xE6EDF5FF, (int) (255 * alpha)));
-        }
+            float x = sw / 2f - w0 / 2f;
+            float alpha = cur ? 1f : Math.max(0.10f, 0.9f - dist * 0.25f);
 
-        // 当前行（大字白色）
-        float x = sw / 2f - cw / 2f;
-        useF.drawStringWithShadow(event.getContext(), curText, x, activeY, 0xFFFFFFFF);
-
-        // 翻译（独立一行，浅青偏深可读）
-        if (tr != null && !tr.isEmpty()) {
-            TrueTypeFont tf = transFont;
-            float tw = tf.getStringWidth(tr);
-            if (tw > maxW) {
-                tf = instance.getFontManager().getFont(Math.max(12, (int) (15 * maxW / tw)));
-                tw = tf.getStringWidth(tr);
+            if (cur) {
+                use.drawString(event.getContext(), text, x + 0.7f, y + 0.7f, ColorUtil.applyAlpha(0xFF10B981, (int) (150 * alpha)));
+                use.drawStringWithShadow(event.getContext(), text, x, y, ColorUtil.applyAlpha(0xFFFFFFFF, 255));
+            } else {
+                use.drawStringWithShadow(event.getContext(), text, x, y,
+                        ColorUtil.applyAlpha(0xFFB9C4D2, (int) (255 * alpha)));
             }
-            tf.drawStringWithShadow(event.getContext(), tr, sw / 2f - tw / 2f, activeY + useF.getHeight() + 4,
-                    ColorUtil.applyAlpha(0xFF4FB3C8, 240));
-            float underY = activeY + useF.getHeight() + 4 + tf.getHeight() + 2;
-            Render2D.drawRect(event.getContext(), x - 6, underY, cw + 12, 1.4f, ColorUtil.applyAlpha(0xFF10B981, 180));
+
+            if (cur && translation.getValue()) {
+                String tr = m.translationAt(m.getLyrics().get(i).getTime());
+                if (tr != null && !tr.isEmpty()) {
+                    TrueTypeFont tf = transFont;
+                    float tw = tf.getStringWidth(tr);
+                    if (tw > maxW) {
+                        tf = instance.getFontManager().getFont(Math.max(11, (int) (14 * maxW / tw)));
+                        tw = tf.getStringWidth(tr);
+                    }
+                    tf.drawStringWithShadow(event.getContext(), tr, sw / 2f - tw / 2f, y + use.getHeight() + 3,
+                            ColorUtil.applyAlpha(0xFF5BC2B8, 245));
+                }
+                Render2D.drawRect(event.getContext(), x - 8, y + use.getHeight() + (tr != null && !tr.isEmpty() ? 22 : 2),
+                        w0 + 16, 2, ColorUtil.applyAlpha(0xFF10B981, 230));
+            }
         }
     }
+
 
 }
