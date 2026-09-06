@@ -193,12 +193,13 @@ public final class MusicManager implements IMinecraft {
 
     // ---------------- 记忆/续播 ----------------
 
-    /** 有存档则恢复上次会话（平台/歌单/进度）。返回是否命中。 */
+    /** 若存档与当前配置一致则恢复上次进度（总是先重载歌单）。返回是否命中。 */
     public boolean doResume(String cfgServer, String cfgId) {
         JsonObject o = loadState();
         if (o == null) return false;
-        String s = o.has("server") ? o.get("server").getAsString() : cfgServer;
-        String id = o.has("id") ? o.get("id").getAsString() : cfgId;
+        String s = o.has("server") ? o.get("server").getAsString() : null;
+        String id = o.has("id") ? o.get("id").getAsString() : null;
+        if (s == null || id == null || !s.equals(cfgServer) || !id.equals(cfgId)) return false;
         wantResume = true;
         resumeIndex = o.has("index") ? o.get("index").getAsInt() : 0;
         resumeTime = o.has("time") ? o.get("time").getAsDouble() : 0;

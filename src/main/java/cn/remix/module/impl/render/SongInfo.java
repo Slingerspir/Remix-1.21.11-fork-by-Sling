@@ -31,9 +31,8 @@ public final class SongInfo extends Module {
         if (mc.player == null || mc.world == null) return;
 
         MusicManager m = MusicManager.getInstance();
-        if (m.getPlaylist().isEmpty() || m.getCurrentIndex() < 0) return;
+        boolean hasSong = !m.getPlaylist().isEmpty() && m.getCurrentIndex() >= 0;
 
-        MusicManager.Song song = m.getPlaylist().get(m.getCurrentIndex());
         float px = x.getValue();
         float py = y.getValue();
         float w = width.getValue();
@@ -45,26 +44,37 @@ public final class SongInfo extends Module {
         drawGlassCard(event, px, py, w, cardH);
 
         if (showCover.getValue()) {
-            Identifier cover = m.getCoverTexture();
+            Identifier cover = hasSong ? m.getCoverTexture() : null;
             if (cover != null) {
                 Render2D.drawTexture(event.getContext(), cover, px + 10, py + 12, coverSize, coverSize);
             } else {
-                Render2D.drawRect(event.getContext(), px + 10, py + 12, coverSize, coverSize, 0x33333B44);
+                Render2D.drawRect(event.getContext(), px + 10, py + 12, coverSize, coverSize, 0x33414A55);
+                TrueTypeFont nf = instance.getFontManager().getFont(30);
+                String n = hasSong ? "♪" : "♫";
+                nf.drawString(event.getContext(), n, px + 10 + (coverSize - nf.getStringWidth(n)) / 2,
+                        py + 12 + (coverSize - nf.getHeight()) / 2, 0x55606B80);
             }
         }
 
         TrueTypeFont titleFont = instance.getFontManager().getFont(16);
         TrueTypeFont smallFont = instance.getFontManager().getFont(11);
 
-        String title = song.getName();
-        if (title.length() > 22) title = title.substring(0, 22) + "...";
-        titleFont.drawStringWithShadow(event.getContext(), title, textX, py + 14, 0xFFFFFFFF);
+        String title;
+        String artist;
+        if (hasSong) {
+            MusicManager.Song song = m.getPlaylist().get(m.getCurrentIndex());
+            title = song.getName();
+            artist = song.getArtist();
+            if (title.length() > 22) title = title.substring(0, 22) + "...";
+            if (artist.length() > 30) artist = artist.substring(0, 30) + "...";
+        } else {
+            title = "未播放";
+            artist = "开启 MusicPlayer 开始播放";
+        }
+        titleFont.drawStringWithShadow(event.getContext(), title, textX, py + 14, hasSong ? 0xFFFFFFFF : 0xFFA0AAB8);
+        smallFont.drawStringWithShadow(event.getContext(), artist, textX, py + 36, 0xFF99A2B0);
 
-        String artist = song.getArtist();
-        if (artist.length() > 30) artist = artist.substring(0, 30) + "...";
-        smallFont.drawStringWithShadow(event.getContext(), artist, textX, py + 36, 0x99FFFFFF);
-
-        if (showProgress.getValue()) {
+        if (hasSong && showProgress.getValue()) {
             double progress = m.getProgress();
             double max = 240.0;
             float barY = py + cardH - 26;
@@ -73,12 +83,11 @@ public final class SongInfo extends Module {
             Render2D.drawRect(event.getContext(), textX, barY, textW * fill, 2.0f, accent.getValue().getRGB());
 
             String timeText = formatTime(progress) + " / " + formatTime(max);
-            smallFont.drawStringWithShadow(event.getContext(), timeText, textX, barY + 5, 0x88FFFFFF);
+            smallFont.drawStringWithShadow(event.getContext(), timeText, textX, barY + 5, 0x8899A2B0);
         }
 
-        // 播放状态指示（右上角）
-        String status = m.isPlaying() ? "▶" : "❚❚";
-        titleFont.drawString(event.getContext(), status, px + w - 26, py + 12, accent.getValue().getRGB());
+        String status = hasSong ? (m.isPlaying() ? "▶" : "❚❚") : "·";
+        titleFont.drawString(event.getContext(), status, px + w - 26, py + 12, hasSong ? accent.getValue().getRGB() : 0xFF55606B);
     }
 
     private void drawGlassCard(Render2DEvent event, float x, float y, float w, float h) {

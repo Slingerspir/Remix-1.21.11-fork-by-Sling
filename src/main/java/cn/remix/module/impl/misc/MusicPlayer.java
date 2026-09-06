@@ -99,7 +99,7 @@ public final class MusicPlayer extends Module {
         }
         if (m != null && m.isPlaying()) {
             long now = System.currentTimeMillis();
-            if (now - lastSaveMs > 8000) {
+            if (now - lastSaveMs > 5000) {
                 lastSaveMs = now;
                 m.rememberNow();
             }
