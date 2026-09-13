@@ -33,6 +33,7 @@ public class Client implements IMinecraft {
     private ClickGuiScreen clickGuiScreen;
 
     public void init() {
+        cn.remix.protocol.heypixel.ProtocolPayloads.register();
         eventManager = new EventManager();
         moduleManager = new ModuleManager();
         commandManager = new CommandManager();

@@ -5,6 +5,7 @@ import cn.remix.event.impl.AttackEvent;
 import cn.remix.event.impl.MotionEvent;
 import cn.remix.event.impl.MoveInputEvent;
 import cn.remix.event.impl.PacketEvent;
+import cn.remix.event.impl.TickEvent;
 import cn.remix.module.Category;
 import cn.remix.module.Module;
 import cn.remix.module.value.impl.BoolValue;
@@ -13,10 +14,11 @@ import cn.remix.module.value.impl.NumberValue;
 import cn.remix.util.network.PacketUtil;
 import injection.accessor.ClientPlayerEntityAccessor;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 
 public final class Criticals extends Module {
-    private final ModeValue mode = new ModeValue("Mode", "Packet", "No Ground", "NCP", "Strict", "Sentinel", "Packet", "Heypixel");
+    private final ModeValue mode = new ModeValue("Mode", "Packet", "No Ground", "NCP", "Strict", "Sentinel", "Packet", "Heypixel", "Heypixel2");
     private final BoolValue autoJump = new BoolValue("Auto Jump", true, () -> mode.is("Heypixel"));
     private final BoolValue skipTicks = new BoolValue("SkipTicks", true, () -> mode.is("Heypixel"));
     private final NumberValue critRange = new NumberValue("Critical Range", 3.0f, 1, 3.2f, 0.1f, () -> mode.is("Heypixel"));
@@ -87,6 +89,30 @@ public final class Criticals extends Module {
                     sendCritPacket(-0.000001, true);
                 }
             }
+        }
+    }
+
+    @EventTarget
+    public void onTick(TickEvent event) {
+        // Heypixel2：移植 nilore Critical —— 命中窗口内释放疾跑（暴击窗口）
+        if (mc.player == null || mc.world == null || !mode.is("Heypixel2")) return;
+
+        Aura aura = getModule(Aura.class);
+        if (aura == null || !aura.isEnabled() || !(aura.getTarget() instanceof LivingEntity target)) return;
+
+        if (mc.player.isOnGround() || mc.player.isTouchingWater() || mc.player.isInLava()
+                || mc.player.isUsingItem() || mc.player.isSneaking()
+                || mc.player.hasVehicle() || mc.player.isClimbing()
+                || mc.player.hasStatusEffect(StatusEffects.BLINDNESS)
+                || mc.player.hasStatusEffect(StatusEffects.SLOWNESS)
+                || mc.player.hasStatusEffect(StatusEffects.LEVITATION)) {
+            return;
+        }
+
+        int hurt = target.hurtTime;
+        if (hurt >= 7 || hurt <= 3) {
+            if (mc.player.isSprinting()) mc.player.setSprinting(false);
+            mc.options.sprintKey.setPressed(false);
         }
     }
 

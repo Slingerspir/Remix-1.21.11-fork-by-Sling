@@ -23,6 +23,7 @@ import cn.remix.module.impl.move.*;
 import cn.remix.module.impl.player.*;
 import cn.remix.module.impl.render.*;
 import cn.remix.module.impl.world.Clutch;
+import cn.remix.module.impl.world.Protocol;
 import cn.remix.module.impl.world.Scaffold;
 import cn.remix.module.impl.world.Tas;
 import cn.remix.module.impl.world.Timer;
@@ -46,6 +47,7 @@ public class ModuleManager implements IMinecraft {
                 new Notification(),
                 new ClickGui(),
                 new Scaffold(),
+                new Protocol(),
                 new Clutch(),
                 new WorldTweaks(),
                 new AntiBot(),

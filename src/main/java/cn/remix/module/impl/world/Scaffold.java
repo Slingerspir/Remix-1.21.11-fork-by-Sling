@@ -28,6 +28,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -41,7 +42,7 @@ import java.awt.*;
 @Getter
 public class Scaffold extends Module {
     public static NumberValue delay = new NumberValue("Delay", 0, 0, 200, 10);
-    private final ModeValue mode = new ModeValue("Mode", "Normal", "Normal", "Telly Bridge", "Native", "Heypixel");
+    private final ModeValue mode = new ModeValue("Mode", "Normal", "Normal", "Telly Bridge", "Native", "Heypixel", "Heypixel2");
     private final NumberValue tellyTick = new NumberValue("Telly Tick", 1, 1, 5, 1, () -> !mode.is("Normal"));
     private final ModeValue rotationMode = new ModeValue("Rotation Mode", "Normal", "Normal", "Facing", "Hit Vec", "Nearest", "Hypixel");
     private final NumberValue shrink = new NumberValue("Shrink", .1f, 0, .45f, .01f, () -> rotationMode.is("Nearest") || rotationMode.is("Hypixel"));
@@ -246,7 +247,7 @@ public class Scaffold extends Module {
         mc.player.getInventory().setSelectedSlot(BlockUtil.getBlockSlot(maxStack.getValue()));
 
         switch (mode.getValue()) {
-            case "Normal" -> canRotation = canPlace = true;
+            case "Normal", "Heypixel2" -> canRotation = canPlace = true;
             case "Telly Bridge" -> canRotation = canPlace = Util.offGroundTicks >= tellyTick.getValue().intValue() || !MovementUtil.isMoving();
             case "Native", "Heypixel" -> {
                 canRotation = false;
@@ -294,6 +295,21 @@ public class Scaffold extends Module {
     private void place(BlockPos pos, Direction facing, Vec3d hitVec) {
         if (mc.player == null || mc.world == null || mc.interactionManager == null) return;
 
+        // Heypixel2：C06 姿势欺骗 —— 放置前先朝目标面发一次 PosRot，放置后再还原视角
+        boolean spoof = mode.is("Heypixel2");
+        float origYaw = mc.player.getYaw();
+        float origPitch = mc.player.getPitch();
+        if (spoof) {
+            Vec3d faceCenter = pos.toCenterPos().add(Vec3d.of(facing.getVector()).multiply(0.5));
+            float[] rot = RotationUtil.getRotations(mc.player.getEyePos(), faceCenter);
+            float yaw = rot[0];
+            float pitch = MathHelper.clamp(rot[1], -90.0f, 90.0f);
+            if (yaw > -360.0f && yaw < 360.0f) yaw += 720.0f;
+            float jitter = (float) (Math.random() * 0.04 + 0.03) * (Math.random() < 0.5 ? -1.0f : 1.0f);
+            PacketUtil.sendPacket(new PlayerMoveC2SPacket.Full(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+                    yaw + jitter, pitch + jitter, mc.player.isOnGround(), mc.player.horizontalCollision));
+        }
+
         if (mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, new BlockHitResult(hitVec, facing, pos, false)) == ActionResult.SUCCESS) {
             blocksPlaced++;
             long now = System.currentTimeMillis();
@@ -307,6 +323,12 @@ public class Scaffold extends Module {
             } else {
                 mc.player.swingHand(Hand.MAIN_HAND);
             }
+        }
+
+        if (spoof) {
+            float jitter = (float) (Math.random() * 0.04 + 0.03) * (Math.random() < 0.5 ? -1.0f : 1.0f);
+            PacketUtil.sendPacket(new PlayerMoveC2SPacket.Full(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+                    origYaw + jitter, MathHelper.clamp(origPitch, -90.0f, 90.0f) + jitter, mc.player.isOnGround(), mc.player.horizontalCollision));
         }
     }
 
