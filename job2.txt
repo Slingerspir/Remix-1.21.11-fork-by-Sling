@@ -1,0 +1,398 @@
+﻿2026-09-13T09:08:18.9041171Z Current runner version: '2.337.0'
+2026-09-13T09:08:18.9063024Z ##[group]Runner Image Provisioner
+2026-09-13T09:08:18.9063790Z Hosted Compute Agent
+2026-09-13T09:08:18.9064314Z Version: 20260828.587
+2026-09-13T09:08:18.9064890Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-13T09:08:18.9065483Z Build Date: 2026-08-28T16:44:25Z
+2026-09-13T09:08:18.9066112Z Worker ID: {01ddebd8-f18a-480d-b085-457b1887b736}
+2026-09-13T09:08:18.9066744Z Azure Region: centralus
+2026-09-13T09:08:18.9067224Z ##[endgroup]
+2026-09-13T09:08:18.9068589Z ##[group]Operating System
+2026-09-13T09:08:18.9069150Z Ubuntu
+2026-09-13T09:08:18.9069614Z 24.04.5
+2026-09-13T09:08:18.9070044Z LTS
+2026-09-13T09:08:18.9070462Z ##[endgroup]
+2026-09-13T09:08:18.9070930Z ##[group]Runner Image
+2026-09-13T09:08:18.9071405Z Image: ubuntu-24.04
+2026-09-13T09:08:18.9071913Z Version: 20260907.300.1
+2026-09-13T09:08:18.9072896Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-13T09:08:18.9074127Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-13T09:08:18.9074974Z ##[endgroup]
+2026-09-13T09:08:18.9076016Z ##[group]GITHUB_TOKEN Permissions
+2026-09-13T09:08:18.9078174Z Contents: write
+2026-09-13T09:08:18.9079307Z Metadata: read
+2026-09-13T09:08:18.9079832Z Packages: write
+2026-09-13T09:08:18.9080339Z ##[endgroup]
+2026-09-13T09:08:18.9082554Z Secret source: Actions
+2026-09-13T09:08:18.9083380Z Cache mode: write
+2026-09-13T09:08:18.9084190Z Prepare workflow directory
+2026-09-13T09:08:18.9347440Z Prepare all required actions
+2026-09-13T09:08:18.9390858Z Getting action download info
+2026-09-13T09:08:19.1665092Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-13T09:08:19.2822407Z Download action repository 'actions/setup-java@v4' (SHA:cf277c60eb25467037889841efdb72551f06f6c3)
+2026-09-13T09:08:20.0534114Z Download action repository 'gradle/actions@af1da67850ed9a4cedd57bfd976089dd991e2582' (SHA:af1da67850ed9a4cedd57bfd976089dd991e2582)
+2026-09-13T09:08:22.5851401Z Download action repository 'softprops/action-gh-release@v1' (SHA:de2c0eb89ae2a093876385947365aca7b0e5f844)
+2026-09-13T09:08:22.9264044Z Complete job name: build
+2026-09-13T09:08:22.9774952Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:08:22.9781574Z ##[group]Run actions/checkout@v4
+2026-09-13T09:08:22.9781992Z with:
+2026-09-13T09:08:22.9782312Z   repository: Slingerspir/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:22.9784510Z   token: ***
+2026-09-13T09:08:22.9784805Z   ssh-strict: true
+2026-09-13T09:08:22.9785086Z   ssh-user: git
+2026-09-13T09:08:22.9785353Z   persist-credentials: true
+2026-09-13T09:08:22.9785637Z   clean: true
+2026-09-13T09:08:22.9785945Z   sparse-checkout-cone-mode: true
+2026-09-13T09:08:22.9786246Z   fetch-depth: 1
+2026-09-13T09:08:22.9786497Z   fetch-tags: false
+2026-09-13T09:08:22.9786780Z   show-progress: true
+2026-09-13T09:08:22.9787058Z   lfs: false
+2026-09-13T09:08:22.9787409Z   submodules: false
+2026-09-13T09:08:22.9787682Z   set-safe-directory: true
+2026-09-13T09:08:22.9787988Z   allow-unsafe-pr-checkout: false
+2026-09-13T09:08:22.9788586Z ##[endgroup]
+2026-09-13T09:08:23.0667383Z Syncing repository: Slingerspir/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:23.0669194Z ##[group]Getting Git version info
+2026-09-13T09:08:23.0669689Z Working directory is '/home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling'
+2026-09-13T09:08:23.0670415Z [command]/usr/bin/git version
+2026-09-13T09:08:23.0746575Z git version 2.55.0
+2026-09-13T09:08:23.0800185Z ##[endgroup]
+2026-09-13T09:08:23.0806919Z Temporarily overriding HOME='/home/runner/work/_temp/7cdf86cf-d28f-41c1-bfa9-1486eb91e1fd' before making global git config changes
+2026-09-13T09:08:23.0809261Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-13T09:08:23.0810851Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:23.0821176Z Deleting the contents of '/home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling'
+2026-09-13T09:08:23.0824325Z ##[group]Initializing the repository
+2026-09-13T09:08:23.0827968Z [command]/usr/bin/git init /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:23.0925724Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-13T09:08:23.0926843Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-13T09:08:23.0928112Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-13T09:08:23.0928892Z hint: call:
+2026-09-13T09:08:23.0929640Z hint:
+2026-09-13T09:08:23.0930312Z hint: 	git config --global init.defaultBranch <name>
+2026-09-13T09:08:23.0931166Z hint:
+2026-09-13T09:08:23.0931999Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-13T09:08:23.0932946Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-13T09:08:23.0933674Z hint:
+2026-09-13T09:08:23.0934150Z hint: 	git branch -m <name>
+2026-09-13T09:08:23.0934766Z hint:
+2026-09-13T09:08:23.0935448Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-13T09:08:23.0936723Z Initialized empty Git repository in /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling/.git/
+2026-09-13T09:08:23.0939151Z [command]/usr/bin/git remote add origin https://github.com/Slingerspir/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:23.0973317Z ##[endgroup]
+2026-09-13T09:08:23.0974151Z ##[group]Disabling automatic garbage collection
+2026-09-13T09:08:23.0976829Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-13T09:08:23.1000352Z ##[endgroup]
+2026-09-13T09:08:23.1001007Z ##[group]Setting up auth
+2026-09-13T09:08:23.1006531Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-13T09:08:23.1032685Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-13T09:08:23.1346669Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-13T09:08:23.1378298Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-13T09:08:23.1536652Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-13T09:08:23.1561450Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-13T09:08:23.1720362Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-13T09:08:23.1746001Z ##[endgroup]
+2026-09-13T09:08:23.1746728Z ##[group]Fetching the repository
+2026-09-13T09:08:23.1753308Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f2562d8a1209bf335593830a520eab415017e236:refs/remotes/origin/master
+2026-09-13T09:08:24.3926069Z From https://github.com/Slingerspir/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:24.3927090Z  * [new ref]         f2562d8a1209bf335593830a520eab415017e236 -> origin/master
+2026-09-13T09:08:24.3928796Z ##[endgroup]
+2026-09-13T09:08:24.3929374Z ##[group]Determining the checkout info
+2026-09-13T09:08:24.3929818Z ##[endgroup]
+2026-09-13T09:08:24.3930187Z [command]/usr/bin/git sparse-checkout disable
+2026-09-13T09:08:24.3980244Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-13T09:08:24.4042665Z ##[group]Checking out the ref
+2026-09-13T09:08:24.4047499Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-09-13T09:08:24.5256056Z Reset branch 'master'
+2026-09-13T09:08:24.5260020Z branch 'master' set up to track 'origin/master'.
+2026-09-13T09:08:24.5267017Z ##[endgroup]
+2026-09-13T09:08:24.5309250Z [command]/usr/bin/git log -1 --format=%H
+2026-09-13T09:08:24.5325956Z f2562d8a1209bf335593830a520eab415017e236
+2026-09-13T09:08:24.5556314Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:08:24.5557759Z ##[group]Run actions/setup-java@v4
+2026-09-13T09:08:24.5558061Z with:
+2026-09-13T09:08:24.5558343Z   java-version: 21
+2026-09-13T09:08:24.5558793Z   distribution: temurin
+2026-09-13T09:08:24.5559093Z   server-id: github
+2026-09-13T09:08:24.5559494Z   settings-path: /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:08:24.5559959Z   java-package: jdk
+2026-09-13T09:08:24.5560263Z   check-latest: false
+2026-09-13T09:08:24.5560534Z   server-username: GITHUB_ACTOR
+2026-09-13T09:08:24.5560824Z   server-password: GITHUB_TOKEN
+2026-09-13T09:08:24.5561125Z   overwrite-settings: true
+2026-09-13T09:08:24.5561503Z   job-status: success
+2026-09-13T09:08:24.5563434Z   token: ***
+2026-09-13T09:08:24.5563680Z ##[endgroup]
+2026-09-13T09:08:24.6959784Z ##[warning]setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+2026-09-13T09:08:24.6965564Z ##[group]Installed distributions
+2026-09-13T09:08:24.8303175Z Resolved Java 21.0.12+1 from tool-cache
+2026-09-13T09:08:24.8303829Z Setting Java 21.0.12+1 as the default
+2026-09-13T09:08:24.8311763Z (node:2043) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:08:24.8312437Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:08:24.8314534Z Creating toolchains.xml for JDK version 21 from temurin
+2026-09-13T09:08:24.8386819Z Writing to /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling/toolchains.xml
+2026-09-13T09:08:24.8387575Z 
+2026-09-13T09:08:24.8388023Z Java configuration:
+2026-09-13T09:08:24.8388769Z   Distribution: temurin
+2026-09-13T09:08:24.8389081Z   Version: 21.0.12+1
+2026-09-13T09:08:24.8389585Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:08:24.8390022Z 
+2026-09-13T09:08:24.8390600Z ##[endgroup]
+2026-09-13T09:08:24.8405489Z Creating settings.xml with server-id: github
+2026-09-13T09:08:24.8454644Z Writing to /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling/settings.xml
+2026-09-13T09:08:24.8706237Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:08:24.8707427Z ##[group]Run gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+2026-09-13T09:08:24.8707820Z with:
+2026-09-13T09:08:24.8708118Z   gradle-version: 9.5.0
+2026-09-13T09:08:24.8708506Z   cache-disabled: false
+2026-09-13T09:08:24.8708787Z   cache-read-only: false
+2026-09-13T09:08:24.8709072Z   cache-write-only: false
+2026-09-13T09:08:24.8709356Z   cache-overwrite-existing: false
+2026-09-13T09:08:24.8709720Z   cache-cleanup: on-success
+2026-09-13T09:08:24.8710046Z   gradle-home-cache-includes: caches
+notifications
+
+2026-09-13T09:08:24.8710391Z   add-job-summary: always
+2026-09-13T09:08:24.8710812Z   add-job-summary-as-pr-comment: never
+2026-09-13T09:08:24.8711141Z   dependency-graph: disabled
+2026-09-13T09:08:24.8711490Z   dependency-graph-report-dir: dependency-graph-reports
+2026-09-13T09:08:24.8711976Z   dependency-graph-continue-on-failure: true
+2026-09-13T09:08:24.8712313Z   build-scan-publish: false
+2026-09-13T09:08:24.8712598Z   validate-wrappers: true
+2026-09-13T09:08:24.8712890Z   allow-snapshot-wrappers: false
+2026-09-13T09:08:24.8713246Z   gradle-home-cache-strict-match: false
+2026-09-13T09:08:24.8713548Z   workflow-job-context: null
+2026-09-13T09:08:24.8717146Z   github-token: ***
+2026-09-13T09:08:24.8717519Z env:
+2026-09-13T09:08:24.8717993Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:08:24.8718941Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:08:24.8719522Z ##[endgroup]
+2026-09-13T09:08:25.0491597Z (node:2055) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:08:25.0492369Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:08:26.9087020Z Wrote default JDK locations to /home/runner/.m2/toolchains.xml
+2026-09-13T09:08:26.9088651Z Preparing cache for cleanup.
+2026-09-13T09:08:26.9091395Z ##[group]Restore Gradle state from cache
+2026-09-13T09:08:26.9833999Z ##[warning]Failed to restore gradle-home-v1|Linux-X64|build[d871ef14cbb8b831b475ac8539b275b6]-f2562d8a1209bf335593830a520eab415017e236: Error: Cache service responded with 400
+2026-09-13T09:08:26.9940159Z Gradle User Home cache not found. Will initialize empty.
+2026-09-13T09:08:26.9941453Z ##[endgroup]
+2026-09-13T09:08:27.0058523Z ##[group]All Gradle Wrapper jars are valid
+2026-09-13T09:08:27.0059242Z 
+2026-09-13T09:08:27.0059616Z ##[endgroup]
+2026-09-13T09:08:27.0974037Z ##[group]Provision Gradle 9.5.0
+2026-09-13T09:08:31.5722853Z ##[warning]Restore Gradle distribution 9.5.0 failed: Error: Cache service responded with 400
+2026-09-13T09:08:31.5725242Z Gradle distribution 9.5.0 not found in cache. Will download.
+2026-09-13T09:08:32.3832831Z Downloaded https://services.gradle.org/distributions/gradle-9.5.0-bin.zip to /home/runner/work/_temp/.gradle-actions/gradle-installations/downloads/gradle-9.5.0-bin.zip (size 140319124)
+2026-09-13T09:08:32.3950555Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:08:32.5781094Z ##[warning]Save Gradle distribution 9.5.0 failed: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0EGimagAAAADvAamCns0BRZ7t2xr35qEtQ0gxQUEyMDMwODE0MDM0AEVkZ2U=
+2026-09-13T09:08:32.5795273Z [command]/usr/bin/unzip -o -q /home/runner/work/_temp/.gradle-actions/gradle-installations/downloads/gradle-9.5.0-bin.zip
+2026-09-13T09:08:33.5388962Z Extracted Gradle 9.5.0 to /home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.5.0
+2026-09-13T09:08:33.5390609Z Provisioned Gradle executable /home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.5.0/bin/gradle
+2026-09-13T09:08:33.5391903Z ##[endgroup]
+2026-09-13T09:08:33.5518187Z ##[group]Run if [ "true" == "true" ]; then
+2026-09-13T09:08:33.5519020Z [36;1mif [ "true" == "true" ]; then[0m
+2026-09-13T09:08:33.5519368Z [36;1m  gradle build -x test --no-daemon[0m
+2026-09-13T09:08:33.5519713Z [36;1melse[0m
+2026-09-13T09:08:33.5519985Z [36;1m  gradle build --no-daemon[0m
+2026-09-13T09:08:33.5520269Z [36;1mfi[0m
+2026-09-13T09:08:33.5543340Z shell: /usr/bin/bash -e {0}
+2026-09-13T09:08:33.5543853Z env:
+2026-09-13T09:08:33.5544200Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:08:33.5544698Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:08:33.5545152Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-09-13T09:08:33.5545495Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-09-13T09:08:33.5545810Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-09-13T09:08:33.5546264Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-09-13T09:08:33.5546822Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-09-13T09:08:33.5547298Z   DEVELOCITY_AUTO_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-09-13T09:08:33.5547644Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-09-13T09:08:33.5547974Z ##[endgroup]
+2026-09-13T09:08:33.9952121Z 
+2026-09-13T09:08:33.9953729Z Welcome to Gradle 9.5.0!
+2026-09-13T09:08:33.9954166Z 
+2026-09-13T09:08:33.9955162Z Here are the highlights of this release:
+2026-09-13T09:08:33.9955814Z  - Task provenance in reports and failure messages
+2026-09-13T09:08:33.9960477Z  - Type-safe accessors for precompiled Kotlin Settings plugins
+2026-09-13T09:08:33.9961000Z 
+2026-09-13T09:08:33.9966868Z For more details see https://docs.gradle.org/9.5.0/release-notes.html
+2026-09-13T09:08:33.9967374Z 
+2026-09-13T09:08:34.3949318Z To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+2026-09-13T09:08:36.0947716Z Daemon will be stopped at the end of the build 
+2026-09-13T09:08:56.2951633Z 
+2026-09-13T09:08:56.2989754Z > Configure project :
+2026-09-13T09:08:56.2990591Z Fabric Loom: 1.17.20
+2026-09-13T09:09:17.1969265Z 
+2026-09-13T09:09:17.2009810Z Cannot remap modifiers because it does not exist in any of the targets [] or their parents.
+2026-09-13T09:09:19.1958319Z 
+2026-09-13T09:09:19.1959541Z > Task :processResources
+2026-09-13T09:09:26.0948020Z > Task :processIncludeJars
+2026-09-13T09:09:26.9949510Z > Task :sourcesJar
+2026-09-13T09:09:35.1959717Z > Task :generateEffectiveLombokConfig
+2026-09-13T09:09:45.0947669Z > Task :remapSourcesJar
+2026-09-13T09:09:53.6956967Z > Task :compileJava
+2026-09-13T09:09:53.6989512Z > Task :classes
+2026-09-13T09:09:54.5949695Z > Task :jar
+2026-09-13T09:09:55.8039734Z > Task :validateAccessWidener NO-SOURCE
+2026-09-13T09:09:55.8089439Z > Task :check
+2026-09-13T09:09:58.2948155Z Cannot remap firstLaunch because it does not exist in any of the targets [net/minecraft/client/gui/screen/TitleScreen] or their parents.
+2026-09-13T09:10:05.5948258Z > Task :remapJar
+2026-09-13T09:10:05.5949053Z > Task :assemble
+2026-09-13T09:10:05.5949719Z > Task :build
+2026-09-13T09:10:05.5951725Z 
+2026-09-13T09:10:05.5953455Z [Incubating] Problems report is available at: file:///home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling/build/reports/problems/problems-report.html
+2026-09-13T09:10:05.5954307Z 
+2026-09-13T09:10:05.5958866Z Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+2026-09-13T09:10:05.5959569Z 
+2026-09-13T09:10:05.5960250Z You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+2026-09-13T09:10:05.5960906Z 
+2026-09-13T09:10:05.5961751Z For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+2026-09-13T09:10:05.5962792Z 
+2026-09-13T09:10:05.5963635Z BUILD SUCCESSFUL in 1m 31s
+2026-09-13T09:10:05.5964162Z 8 actionable tasks: 8 executed
+2026-09-13T09:10:05.9616203Z ##[group]Run gradle publish --no-daemon
+2026-09-13T09:10:05.9616584Z [36;1mgradle publish --no-daemon[0m
+2026-09-13T09:10:05.9637160Z shell: /usr/bin/bash -e {0}
+2026-09-13T09:10:05.9637461Z env:
+2026-09-13T09:10:05.9637814Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:10:05.9638309Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:10:05.9639005Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-09-13T09:10:05.9639402Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-09-13T09:10:05.9639722Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-09-13T09:10:05.9640150Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-09-13T09:10:05.9640591Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-09-13T09:10:05.9641228Z   DEVELOCITY_AUTO_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-09-13T09:10:05.9641588Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-09-13T09:10:05.9641989Z   USERNAME: Slingerspir
+2026-09-13T09:10:05.9644054Z   TOKEN: ***
+2026-09-13T09:10:05.9644315Z ##[endgroup]
+2026-09-13T09:10:06.5027230Z To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+2026-09-13T09:10:07.1992761Z Daemon will be stopped at the end of the build 
+2026-09-13T09:10:11.2038996Z 
+2026-09-13T09:10:11.2055279Z > Configure project :
+2026-09-13T09:10:11.2069203Z Fabric Loom: 1.17.20
+2026-09-13T09:10:11.4989911Z 
+2026-09-13T09:10:11.5009105Z > Task :publish UP-TO-DATE
+2026-09-13T09:10:11.5028930Z 
+2026-09-13T09:10:11.5029787Z [Incubating] Problems report is available at: file:///home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling/build/reports/problems/problems-report.html
+2026-09-13T09:10:11.5030371Z 
+2026-09-13T09:10:11.5030856Z Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+2026-09-13T09:10:11.5031254Z 
+2026-09-13T09:10:11.5031885Z You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+2026-09-13T09:10:11.5032368Z 
+2026-09-13T09:10:11.5032808Z For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+2026-09-13T09:10:11.5033277Z 
+2026-09-13T09:10:11.5033400Z BUILD SUCCESSFUL in 5s
+2026-09-13T09:10:11.5033943Z Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.0/userguide/configuration_cache_enabling.html
+2026-09-13T09:10:11.8435750Z ##[group]Run echo "=== Files in build/libs ==="
+2026-09-13T09:10:11.8436386Z [36;1mecho "=== Files in build/libs ==="[0m
+2026-09-13T09:10:11.8436957Z [36;1mls -la build/libs/ || echo "build/libs directory not found or empty"[0m
+2026-09-13T09:10:11.8465921Z shell: /usr/bin/bash -e {0}
+2026-09-13T09:10:11.8466356Z env:
+2026-09-13T09:10:11.8466956Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:10:11.8467702Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:10:11.8468586Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-09-13T09:10:11.8469131Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-09-13T09:10:11.8469579Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-09-13T09:10:11.8470087Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-09-13T09:10:11.8470705Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-09-13T09:10:11.8471592Z   DEVELOCITY_AUTO_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-09-13T09:10:11.8472101Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-09-13T09:10:11.8472516Z ##[endgroup]
+2026-09-13T09:10:11.8526316Z === Files in build/libs ===
+2026-09-13T09:10:11.8538297Z total 74632
+2026-09-13T09:10:11.8539128Z drwxr-xr-x  2 runner runner     4096 Sep 13 09:10 .
+2026-09-13T09:10:11.8539516Z drwxr-xr-x 12 runner runner     4096 Sep 13 09:10 ..
+2026-09-13T09:10:11.8539977Z -rw-r--r--  1 runner runner 16268950 Sep 13 09:09 seek-2.3.0-sources.jar
+2026-09-13T09:10:11.8540426Z -rw-r--r--  1 runner runner 60143982 Sep 13 09:10 seek-2.3.0.jar
+2026-09-13T09:10:11.8610155Z ##[warning]Unexpected input(s) 'make_latest', valid inputs are ['body', 'body_path', 'name', 'tag_name', 'draft', 'prerelease', 'files', 'fail_on_unmatched_files', 'repository', 'token', 'target_commitish', 'discussion_category_name', 'generate_release_notes', 'append_body']
+2026-09-13T09:10:11.8616882Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:10:11.8618030Z ##[group]Run softprops/action-gh-release@v1
+2026-09-13T09:10:11.8618343Z with:
+2026-09-13T09:10:11.8618808Z   files: build/libs/*.jar
+
+2026-09-13T09:10:11.8619179Z   fail_on_unmatched_files: false
+2026-09-13T09:10:11.8619634Z   tag_name: 2.3.0
+2026-09-13T09:10:11.8619892Z   generate_release_notes: true
+2026-09-13T09:10:11.8620262Z   make_latest: true
+2026-09-13T09:10:11.8622220Z   token: ***
+2026-09-13T09:10:11.8622500Z env:
+2026-09-13T09:10:11.8622835Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:10:11.8623304Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+2026-09-13T09:10:11.8623742Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-09-13T09:10:11.8624087Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-09-13T09:10:11.8624434Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-09-13T09:10:11.8624759Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-09-13T09:10:11.8625178Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-09-13T09:10:11.8625657Z   DEVELOCITY_AUTO_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-09-13T09:10:11.8626024Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-09-13T09:10:11.8628072Z   GITHUB_TOKEN: ***
+2026-09-13T09:10:11.8628329Z ##[endgroup]
+2026-09-13T09:10:11.9279063Z (node:2621) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:10:11.9279975Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:10:11.9378867Z (node:2621) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-13T09:10:14.8740487Z ⚠️ Unexpected error fetching GitHub release for tag refs/heads/master: HttpError: invalid json response body at https://api.github.com/repos/Slingerspir/Remix-1.21.11-fork-by-Sling/releases/387843472 reason: Unexpected end of JSON input
+2026-09-13T09:10:14.8746788Z ##[error]invalid json response body at https://api.github.com/repos/Slingerspir/Remix-1.21.11-fork-by-Sling/releases/387843472 reason: Unexpected end of JSON input
+2026-09-13T09:10:14.8899358Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:10:14.8900408Z Post job cleanup.
+2026-09-13T09:10:15.0615971Z In post-action step
+2026-09-13T09:10:15.0624321Z ##[group]Stopping Gradle daemons
+2026-09-13T09:10:15.0625260Z Stopping Gradle daemons for /home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.5.0
+2026-09-13T09:10:15.0634794Z (node:2633) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:10:15.0635593Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:10:15.0640087Z [command]/home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.5.0/bin/gradle --stop
+2026-09-13T09:10:15.5934778Z No Gradle daemons are running.
+2026-09-13T09:10:15.6056655Z ##[endgroup]
+2026-09-13T09:10:15.7018311Z ##[group]Provision Gradle 9.7.1
+2026-09-13T09:10:16.1583486Z ##[warning]Restore Gradle distribution 9.7.1 failed: Error: Cache service responded with 400
+2026-09-13T09:10:16.1694799Z Gradle distribution 9.7.1 not found in cache. Will download.
+2026-09-13T09:10:16.9411782Z Downloaded https://services.gradle.org/distributions/gradle-9.7.1-bin.zip to /home/runner/work/_temp/.gradle-actions/gradle-installations/downloads/gradle-9.7.1-bin.zip (size 151433392)
+2026-09-13T09:10:16.9552732Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:10:17.1613221Z ##[warning]Save Gradle distribution 9.7.1 failed: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0eWimagAAAADUXD6mE41ZRIlle2xD+D3cQ0gxQUEyMDMwODE0MDM0AEVkZ2U=
+2026-09-13T09:10:17.1625054Z [command]/usr/bin/unzip -o -q /home/runner/work/_temp/.gradle-actions/gradle-installations/downloads/gradle-9.7.1-bin.zip
+2026-09-13T09:10:18.2000035Z Extracted Gradle 9.7.1 to /home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.7.1
+2026-09-13T09:10:18.2002433Z Provisioned Gradle executable /home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.7.1/bin/gradle
+2026-09-13T09:10:18.2003547Z ##[endgroup]
+2026-09-13T09:10:18.2004746Z ##[group]Executing Gradle to clean up caches
+2026-09-13T09:10:18.2005246Z Cleaning up caches last used before 1789290506908
+2026-09-13T09:10:23.6055049Z ##[endgroup]
+2026-09-13T09:10:23.6058923Z ##[warning]Cache cleanup failed. Will continue. Error: The process '/home/runner/work/_temp/.gradle-actions/gradle-installations/installs/gradle-9.7.1/bin/gradle' failed with exit code 1
+2026-09-13T09:10:23.6060950Z ##[group]Caching Gradle state
+2026-09-13T09:10:23.7210728Z Caching dependencies with path '/home/runner/.gradle/caches/modules-*/files-*/*/*/*/*' and cache key: gradle-dependencies-v1-a6095f45413e9a59e3141610ffdaadca
+2026-09-13T09:10:23.7303327Z Caching instrumented-jars with path '/home/runner/.gradle/caches/jars-*/*/' and cache key: gradle-instrumented-jars-v1-d14f5eb87787e43a666668ff40e14f15
+2026-09-13T09:10:23.7437050Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:10:23.7486360Z Caching groovy-dsl with path '/home/runner/.gradle/caches/*/groovy-dsl/*/' and cache key: gradle-groovy-dsl-v1-65e11aa1b021a063172bc3d1fa347a29
+2026-09-13T09:10:23.7697678Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:10:23.7984304Z Caching transforms with path '/home/runner/.gradle/caches/transforms-4/*/
+2026-09-13T09:10:23.7985010Z /home/runner/.gradle/caches/*/transforms/*/' and cache key: gradle-transforms-v1-1c543c5a3ff6cd947e5bc51800e85d3c
+2026-09-13T09:10:23.8205403Z ##[warning]Failed to save cache entry with path '/home/runner/.gradle/caches/jars-*/*/' and key: gradle-instrumented-jars-v1-d14f5eb87787e43a666668ff40e14f15: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0f2imagAAAABCVV48fEF0S5o45mHFheL2Q0gxQUEyMDMwODEzMDIzAEVkZ2U=
+2026-09-13T09:10:23.8398648Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:10:23.8590670Z ##[warning]Failed to save cache entry with path '/home/runner/.gradle/caches/*/groovy-dsl/*/' and key: gradle-groovy-dsl-v1-65e11aa1b021a063172bc3d1fa347a29: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0f2imagAAAAAlXtHx51pQQZdy1qO0jsxtQ0gxQUEyMDMwODEzMDM2AEVkZ2U=
+2026-09-13T09:10:23.9104128Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:10:24.0819957Z ##[warning]Failed to save cache entry with path '/home/runner/.gradle/caches/transforms-4/*/
+/home/runner/.gradle/caches/*/transforms/*/' and key: gradle-transforms-v1-1c543c5a3ff6cd947e5bc51800e85d3c: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0gGimagAAAAAUZ7lD8xO7T7fqv8WcdWJQQ0gxQUEyMDMwODEzMDIzAEVkZ2U=
+2026-09-13T09:10:24.2357752Z ##[warning]Failed to save cache entry with path '/home/runner/.gradle/caches/modules-*/files-*/*/*/*/*' and key: gradle-dependencies-v1-a6095f45413e9a59e3141610ffdaadca: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0gGimagAAAABnHIU4KVLATqrb4ZVoLVSsQ0gxQUEyMDMwODEzMDYwAEVkZ2U=
+2026-09-13T09:10:24.2595565Z Caching Gradle User Home with cache key: gradle-home-v1|Linux-X64|build[d871ef14cbb8b831b475ac8539b275b6]-f2562d8a1209bf335593830a520eab415017e236
+2026-09-13T09:10:24.2689198Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:10:24.8280552Z ##[warning]Failed to save cache entry with path '/home/runner/.gradle/caches,/home/runner/.gradle/notifications,/home/runner/.gradle/.setup-gradle' and key: gradle-home-v1|Linux-X64|build[d871ef14cbb8b831b475ac8539b275b6]-f2562d8a1209bf335593830a520eab415017e236: Error: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0gGimagAAAACZSNjUSv/jR5RJU/xo9mwwQ0gxQUEyMDMwODE0MDQyAEVkZ2U=
+2026-09-13T09:10:24.8284297Z ##[endgroup]
+2026-09-13T09:10:24.8284713Z Generating Job Summary
+2026-09-13T09:10:24.8294328Z Completed post-action step
+2026-09-13T09:10:24.8451070Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:10:24.8452147Z Post job cleanup.
+2026-09-13T09:10:24.9599247Z (node:2856) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:10:24.9600231Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:10:24.9775700Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:10:24.9777304Z Post job cleanup.
+2026-09-13T09:10:25.0492444Z [command]/usr/bin/git version
+2026-09-13T09:10:25.0525802Z git version 2.55.0
+2026-09-13T09:10:25.0554644Z Temporarily overriding HOME='/home/runner/work/_temp/ac80a18d-e9fe-4403-a403-5fcddd0065ea' before making global git config changes
+2026-09-13T09:10:25.0555879Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-13T09:10:25.0559512Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Remix-1.21.11-fork-by-Sling/Remix-1.21.11-fork-by-Sling
+2026-09-13T09:10:25.0592973Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-13T09:10:25.0621523Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-13T09:10:25.0810346Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-13T09:10:25.0834154Z http.https://github.com/.extraheader
+2026-09-13T09:10:25.0843570Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-13T09:10:25.0869321Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-13T09:10:25.1048140Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-13T09:10:25.1072333Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-13T09:10:25.1377810Z Cleaning up orphan processes
+2026-09-13T09:10:25.1588789Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-java@v4, gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582, softprops/action-gh-release@v1. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

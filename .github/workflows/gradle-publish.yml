@@ -61,7 +61,7 @@ jobs:
 
     # 上传构建产物到 Release
     - name: Upload artifacts to Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
       with:
         files: |
