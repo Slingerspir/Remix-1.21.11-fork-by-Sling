@@ -1,5 +1,6 @@
 package cn.remix.ui.clickgui.component.impl;
 
+import cn.remix.module.impl.render.Translator;
 import cn.remix.module.value.impl.NumberValue;
 import cn.remix.ui.clickgui.ModuleButton;
 import cn.remix.ui.clickgui.component.Component;
@@ -41,7 +42,7 @@ public final class NumberComponent extends Component {
         String display = nv.getInc() % 1.0f == 0.0f ? String.valueOf(nv.getValue().longValue()) : String.format("%.2f", nv.getValue());
 
         int alpha = MathHelper.clamp((int) (255.0f * finalProgress), 0, 255);
-        font.drawString(context, nv.getName(), x + 4.0f, y + 2.0f, new Color(204, 204, 204, alpha).getRGB());
+        font.drawString(context, Translator.value(nv.getName()), x + 4.0f, y + 2.0f, new Color(204, 204, 204, alpha).getRGB());
         font.drawString(context, display, x + width - 6.0f - font.getStringWidth(display), y + 2.0f, new Color(154, 154, 170, alpha).getRGB());
 
         float barW = width - 10.0f;

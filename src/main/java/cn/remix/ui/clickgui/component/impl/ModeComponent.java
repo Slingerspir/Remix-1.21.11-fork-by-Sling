@@ -1,5 +1,6 @@
 package cn.remix.ui.clickgui.component.impl;
 
+import cn.remix.module.impl.render.Translator;
 import cn.remix.module.value.impl.ModeValue;
 import cn.remix.ui.clickgui.ModuleButton;
 import cn.remix.ui.clickgui.component.Component;
@@ -37,7 +38,7 @@ public final class ModeComponent extends Component {
         float textY = y + (14.0f - font.getHeight()) / 2.0f + 1.0f;
 
         int alpha = MathHelper.clamp((int) (255.0f * finalProgress), 0, 255);
-        font.drawString(context, mv.getName(), x + 4.0f, textY, new Color(204, 204, 204, alpha).getRGB());
+        font.drawString(context, Translator.value(mv.getName()), x + 4.0f, textY, new Color(204, 204, 204, alpha).getRGB());
         font.drawString(context, mv.getValue(), x + width - 4.0f - font.getStringWidth(mv.getValue()), textY, ColorUtil.applyAlpha(parent.getModulePanel().getAccent(), alpha));
     }
 

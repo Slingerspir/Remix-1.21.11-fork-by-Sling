@@ -1,5 +1,6 @@
 package cn.remix.ui.clickgui.component.impl;
 
+import cn.remix.module.impl.render.Translator;
 import cn.remix.module.value.impl.ColorValue;
 import cn.remix.ui.clickgui.ModuleButton;
 import cn.remix.ui.clickgui.component.Component;
@@ -40,7 +41,7 @@ public final class ColorComponent extends Component {
         var font = instance.getFontManager().getFont(16);
         int alpha = MathHelper.clamp((int) (255 * finalProgress), 0, 255);
 
-        font.drawString(context, cv.getName(), x + 4, y + (14 - font.getHeight()) / 2.0f + 1, new Color(204, 204, 204, alpha).getRGB());
+        font.drawString(context, Translator.value(cv.getName()), x + 4, y + (14 - font.getHeight()) / 2.0f + 1, new Color(204, 204, 204, alpha).getRGB());
         Render2D.drawRect(context, x + width - 11, y + 3.5f, 7, 7, ColorUtil.applyAlpha(cv.getValue().getRGB(), alpha));
 
         float satX = x + 4, satY = y + 14, satW = width - 8;

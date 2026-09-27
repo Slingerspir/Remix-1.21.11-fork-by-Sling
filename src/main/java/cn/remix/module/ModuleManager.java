@@ -159,7 +159,8 @@ public class ModuleManager implements IMinecraft {
                 new Projectile(),
                 new AntiBlindness(),
                 new AntiNausea(),
-                new NoRender()
+                new NoRender(),
+                new Translator()
         );
 
         sortModules();

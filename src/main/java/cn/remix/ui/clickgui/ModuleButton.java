@@ -1,6 +1,7 @@
 package cn.remix.ui.clickgui;
 
 import cn.remix.module.Module;
+import cn.remix.module.impl.render.Translator;
 import cn.remix.module.value.Value;
 import cn.remix.module.value.impl.*;
 import cn.remix.ui.clickgui.component.Component;
@@ -63,7 +64,10 @@ public final class ModuleButton implements IMinecraft {
         float fontY = y + (height - font.getHeight()) / 2.0f + 0.5f;
         int txtColor = ColorUtil.interpolate(new Color(170, 170, 170).getRGB(), Color.WHITE.getRGB(), toggleAnimation.getValue().floatValue());
 
-        font.drawString(context, binding ? "Bind: " + KeyUtil.getKeyName(module.getKey()) : module.getName(), x + 7, fontY, ColorUtil.applyAlpha(txtColor, alphaInt));
+        String label = binding
+                ? Translator.text("Bind") + ": " + KeyUtil.getKeyName(module.getKey())
+                : Translator.module(module.getName());
+        font.drawString(context, label, x + 7, fontY, ColorUtil.applyAlpha(txtColor, alphaInt));
         if (!components.isEmpty()) font.drawString(context, extended ? "-" : "+", x + width - 9, fontY, ColorUtil.applyAlpha(new Color(136, 136, 136).getRGB(), alphaInt));
 
         float totalHeight = 0;

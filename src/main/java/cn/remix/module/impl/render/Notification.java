@@ -487,14 +487,14 @@ public final class Notification extends Module {
 
     private String beautifulLine1(NotificationManager.NotificationEntry entry) {
         if (entry.getModuleName() != null) {
-            return entry.getCategoryName() == null ? entry.getType().getLabel() : entry.getCategoryName();
+            return entry.getCategoryName() == null ? entry.getType().getLabel() : Translator.category(entry.getCategoryName());
         }
         return entry.getType().getLabel();
     }
 
     private String beautifulLine2(NotificationManager.NotificationEntry entry) {
         if (entry.getModuleName() != null) {
-            return entry.getModuleName() + " · " + (entry.isEnabled() ? this.enableText.getValue() : this.disableText.getValue());
+            return Translator.module(entry.getModuleName()) + " · " + (entry.isEnabled() ? this.enableText.getValue() : this.disableText.getValue());
         }
         return entry.getMessage();
     }

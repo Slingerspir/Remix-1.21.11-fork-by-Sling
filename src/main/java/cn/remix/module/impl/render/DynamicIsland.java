@@ -740,7 +740,7 @@ public final class DynamicIsland extends Module {
         final long timestamp;
 
         ModuleNotification(String name, boolean enabled) {
-            this.moduleName = name;
+            this.moduleName = Translator.module(name);
             this.enabled = enabled;
             this.timestamp = System.currentTimeMillis();
         }

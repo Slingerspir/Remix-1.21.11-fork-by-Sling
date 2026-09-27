@@ -30,7 +30,7 @@ public final class ModuleList extends Drag {
     }
 
     private String getModuleName(Module m) {
-        String name = m.getName().replaceAll("(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ");
+        String name = Translator.module(m.getName());
         return name + (m.getSuffix().isEmpty() ? "" : " " + Formatting.GRAY + m.getSuffix());
     }
 

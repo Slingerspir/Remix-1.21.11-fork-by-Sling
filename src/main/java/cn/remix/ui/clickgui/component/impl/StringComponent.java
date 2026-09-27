@@ -1,5 +1,6 @@
 package cn.remix.ui.clickgui.component.impl;
 
+import cn.remix.module.impl.render.Translator;
 import cn.remix.module.value.impl.StringValue;
 import cn.remix.ui.clickgui.ModuleButton;
 import cn.remix.ui.clickgui.component.Component;
@@ -43,10 +44,11 @@ public final class StringComponent extends Component {
         float textY = y + (16.0f - font.getHeight()) / 2.0f + 1.0f;
         int alpha = MathHelper.clamp((int) (255.0f * finalProgress), 0, 255);
 
-        font.drawString(context, sv.getName(), x + 4.0f, textY, new Color(204, 204, 204, alpha).getRGB());
+        String label = Translator.value(sv.getName());
+        font.drawString(context, label, x + 4.0f, textY, new Color(204, 204, 204, alpha).getRGB());
 
         String value = sv.getValue();
-        float valueX = x + 8.0f + font.getStringWidth(sv.getName());
+        float valueX = x + 8.0f + font.getStringWidth(label);
         float maxTextWidth = Math.max(20.0f, x + width - 6.0f - valueX);
         if (font.getStringWidth(value) > maxTextWidth) {
             while (!value.isEmpty() && font.getStringWidth(value + "...") > maxTextWidth) {

@@ -1,6 +1,7 @@
 package cn.remix.ui.clickgui.panel.impl;
 
 import cn.remix.module.Category;
+import cn.remix.module.impl.render.Translator;
 import cn.remix.ui.clickgui.ModuleButton;
 import cn.remix.ui.clickgui.panel.Panel;
 import cn.remix.util.animation.Easing;
@@ -50,7 +51,7 @@ public final class ModulePanel extends Panel {
         }
         Render2D.drawRect(context, x, y + headerHeight - 1, width, 1, ColorUtil.applyAlpha(getAccent(), alphaInt));
 
-        font.drawString(context, category.getName(), x + 7, y + (headerHeight - font.getHeight()) / 2.0f + 0.5f, ColorUtil.applyAlpha(Color.WHITE.getRGB(), alphaInt));
+        font.drawString(context, Translator.category(category.getName()), x + 7, y + (headerHeight - font.getHeight()) / 2.0f + 0.5f, ColorUtil.applyAlpha(Color.WHITE.getRGB(), alphaInt));
 
         if (collapsed) {
             return;

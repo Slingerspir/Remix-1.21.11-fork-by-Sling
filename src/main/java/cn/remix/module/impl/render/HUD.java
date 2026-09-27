@@ -206,14 +206,14 @@ public class HUD extends Module {
             }
             Render2D.drawGradient(context, x, y + selectorAnimation.getValue().floatValue(), categoryWidth, itemHeight, getColor(), getColor(4), true);
             for (int i = 0; i < categories.size(); i++) {
-                font16.drawStringWithShadow(context, categories.get(i).name(), x + 4, y + 1.5f + i * itemHeight, -1);
+                font16.drawStringWithShadow(context, Translator.category(categories.get(i).name()), x + 4, y + 1.5f + i * itemHeight, -1);
             }
 
             List<Module> modules = instance.getModuleManager().getModuleMap().values().stream().filter(m -> m.getCategory() == categories.get(current)).toList();
             if (modules.isEmpty()) return;
 
             int width = 0;
-            for (Module m : modules) width = (int) Math.max(font16.getStringWidth(m.getName()) + 5, width);
+            for (Module m : modules) width = (int) Math.max(font16.getStringWidth(Translator.module(m.getName())) + 5, width);
 
             expandAnimationX.run(expanded ? width : 0);
             expandAnimationY.run(expanded ? modules.size() * itemHeight : 0);
@@ -232,7 +232,7 @@ public class HUD extends Module {
             if (expanded)
                 Render2D.drawRect(context, boxX, boxY + moduleY, width, 12, new Color(0, 0, 0, 120).getRGB());
             for (int i = 0; i < modules.size(); i++) {
-                font16.drawStringWithShadow(context, modules.get(i).getName(), boxX + 2, boxY + i * itemHeight + 1.5f, modules.get(i).isEnabled() ? -1 : Color.LIGHT_GRAY.getRGB());
+                font16.drawStringWithShadow(context, Translator.module(modules.get(i).getName()), boxX + 2, boxY + i * itemHeight + 1.5f, modules.get(i).isEnabled() ? -1 : Color.LIGHT_GRAY.getRGB());
             }
             Render2D.endScissor(context);
         }

@@ -1,5 +1,6 @@
 package cn.remix.ui.clickgui.component.impl;
 
+import cn.remix.module.impl.render.Translator;
 import cn.remix.module.value.impl.BoolValue;
 import cn.remix.module.value.impl.MultiBoolValue;
 import cn.remix.ui.clickgui.ModuleButton;
@@ -43,13 +44,13 @@ public final class MultiBoolComponent extends Component {
         if (finalProgress < 0.01f) return;
 
         int alpha = MathHelper.clamp((int) (255.0f * finalProgress), 0, 255);
-        String title = " - " + getValue().getName() + " - ";
+        String title = " - " + Translator.value(getValue().getName()) + " - ";
         font.drawString(context, title, x + (width - font.getStringWidth(title)) / 2.0f, y + 2.0f, new Color(204, 204, 204, alpha).getRGB());
 
         float offset = font.getHeight() + 4.0f;
         for (int i = 0; i < subValues.size(); i++) {
             BoolValue bool = subValues.get(i);
-            font.drawString(context, bool.getName(), x + 4.0f, y + offset + (14.0f - font.getHeight()) / 2.0f + 0.5f, new Color(170, 170, 170, alpha).getRGB());
+            font.drawString(context, Translator.value(bool.getName()), x + 4.0f, y + offset + (14.0f - font.getHeight()) / 2.0f + 0.5f, new Color(170, 170, 170, alpha).getRGB());
             animations[i].run(bool.getValue() ? 1.0 : 0.0);
             Render2D.drawRect(context, x + width - 11.0f, y + offset + 3.5f, 7.0f, 7.0f, ColorUtil.applyAlpha(ColorUtil.interpolate(new Color(58, 58, 63, alpha).getRGB(), parent.getModulePanel().getAccent(), animations[i].getValue().floatValue()), alpha));
             offset += 14.0f;
