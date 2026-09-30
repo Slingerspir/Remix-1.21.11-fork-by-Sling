@@ -135,6 +135,7 @@ public class ModuleManager implements IMinecraft {
                 new TpAuraPlus(),
                 new AutoMace(),
                 new SwordPearl(),
+                new PearlCatch(),
                 new ActionRecorder(),
                 new AimAssist(),
                 new AutoHeal(),
