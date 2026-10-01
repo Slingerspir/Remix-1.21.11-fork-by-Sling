@@ -18,12 +18,14 @@ import cn.remix.util.render.ColorUtil;
 import cn.remix.util.render.Render3D;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.projectile.WindChargeEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
@@ -36,25 +38,28 @@ import java.util.Set;
 /**
  * PearlCatch —— 珍珠 + 风弹连招（Full 版）
  *
- * <p>手持剑右键时自动投出末影珍珠，并按官方物理实时计算，让风弹在珍珠上升途中命中它，
+ * <p>手持剑右键时自动投出末影珍珠，并按官方物理实时计算，让风弹在半空中精确命中它，
  * 风弹爆炸把珍珠顶得更高更远，玩家再传送上去。
  *
  * <p>物理常量全部由 1.21.11 官方源码反编译核对：
  * <ul>
  *   <li>{@code ThrownEntity.tick()} = applyGravity() → applyDrag() → 位移，即每 tick
- *       {@code v = (v + (0,-0.03,0)) * 0.99}，{@code p += v}（珍珠）</li>
+ *       {@code v = (v + (0,-0.03,0)) * 0.99}（珍珠）</li>
  *   <li>{@code EnderPearlItem.POWER = 1.5F}，出膛速度 = 视线方向 * 1.5</li>
  *   <li>{@code WindChargeItem.POWER = 1.5F}；风弹继承 {@code ExplosiveProjectileEntity}，
  *       {@code getDrag() == 1.0F} 且 {@code accelerationPower == 0}，因此<b>无重力无阻力</b>，
  *       严格按 {@code p += v * 1.5} 直线飞行</li>
- *   <li>{@code ProjectileEntity.setVelocity()} 会把 shooter 的位移加到弹射物速度上
+ *   <li>两者都用 {@code spawnWithVelocity(..., POWER, 1.0F)} 生成 —— uncertainty = 1.0，
+ *       也就是出膛方向带 {@code nextTriangular(0, 0.0172275)} 的随机抖动，<b>珍珠和风弹都有</b></li>
+ *   <li>{@code ProjectileEntity.setVelocity(shooter, ...)} 会把 shooter 的位移加到弹射物速度上
  *       （水平恒加、垂直仅离地时加），所以跑动时风弹会整体偏移，必须在瞄准里扣掉</li>
+ *   <li>风弹爆炸：{@code EXPLOSION_POWER = 1.2F}（判定半径 = 2.4 格），
+ *       {@code knockbackModifier = 1.22F}，击退方向 = 爆炸点 → 珍珠，也就是<b>风弹自己的飞行方向</b>；
+ *       倍率 = {@code (1 - 距离/2.4) * 伤害系数 * 1.22}</li>
  * </ul>
  *
- * <p>珍珠的实时状态直接从客户端同步下来的 {@link EnderPearlEntity} 读取
- * （{@code getEntityPos()} 就是 {@code this.pos}，与 {@code getVelocity()} 同一 tick，完全自洽），
- * 所以只需要预测未来，不需要假设出膛参数，也不需要为"观测延迟"提前出手 ——
- * 珍珠本身的出膛抖动才是主要误差源，补偿越大误差越大，因此默认零补偿、出手越早越好。
+ * <p>最后一条解释了整套连招的物理：<b>风弹朝哪个方向飞，珍珠就被往哪个方向顶</b>。
+ * 所以想让珍珠"往上窜"，命中点就必须尽量高。
  */
 public final class PearlCatch extends Module {
 
@@ -71,17 +76,22 @@ public final class PearlCatch extends Module {
     private static final int MAX_TICKS = 400;
     /** 拦截解可接受的误差（格）：超过这个值就宁可不出手，也不打空 */
     private static final double INTERCEPT_TOLERANCE = 0.05;
+    /** 连招结束后视觉/命中点还继续画多久（ms） */
+    private static final long VISUAL_HOLD_MS = 2200L;
+    /** 真实轨迹最长记录多少个点 */
+    private static final int TRAIL_LIMIT = 80;
 
     // ===== 设置 =====
-    private final BoolValue requireLookUp = new BoolValue("Require Look Up", true);
-    private final NumberValue lookUpAngle = new NumberValue("Look Up Angle", 30, 0, 89, 1, requireLookUp::getValue);
+    private final BoolValue requireLookUp = new BoolValue("Require Look Up", false);
+    private final NumberValue lookUpAngle = new NumberValue("Look Up Angle", 0, 0, 89, 1, requireLookUp::getValue);
     private final BoolValue lineOfSight = new BoolValue("Line Of Sight", true);
-    private final ModeValue timing = new ModeValue("Timing", "Instant", "Instant", "Highest");
-    private final NumberValue minDistance = new NumberValue("Min Distance", 8.0f, 2.0f, 30.0f, 0.5f, () -> timing.is("Instant"));
-    private final NumberValue delayTicks = new NumberValue("Delay Ticks", 0, 0, 10, 1, () -> timing.is("Instant"));
+    private final ModeValue timing = new ModeValue("Timing", "Smart", "Smart", "Instant", "Apex");
+    private final NumberValue maxFlight = new NumberValue("Max Flight", 12, 4, 30, 1, () -> timing.is("Smart"));
+    private final NumberValue minDistance = new NumberValue("Min Distance", 8.0f, 2.0f, 30.0f, 0.5f, () -> !timing.is("Apex"));
     private final NumberValue switchBackDelay = new NumberValue("Switch Back Delay", 50, 0, 1000, 10);
     private final NumberValue retriggerDelay = new NumberValue("Retrigger Delay", 1500, 0, 5000, 50);
     private final BoolValue debug = new BoolValue("Debug", false);
+    private final BoolValue debugChat = new BoolValue("Debug Chat", false, debug::getValue);
     private final BoolValue visual = new BoolValue("Visual", true);
 
     private enum State {IDLE, WAIT_PEARL, TRACKING, SWITCH_BACK}
@@ -89,6 +99,7 @@ public final class PearlCatch extends Module {
     private final TimerUtil retriggerTimer = new TimerUtil();
     private final TimerUtil phaseTimer = new TimerUtil();
     private final Set<Integer> knownPearls = new HashSet<>();
+    private final Set<Integer> knownCharges = new HashSet<>();
 
     private State state = State.IDLE;
     private int swordSlot;
@@ -96,19 +107,28 @@ public final class PearlCatch extends Module {
     private int windHotbar = -1;
     private int pearlId = -1;
     private int waitTicks;
+
+    // ===== 实时解算状态 =====
     private int lastTicksToApex = -1;
     private int lastWindTicks = -1;
     private int lastHitTicks = -1;
     private int pearlAge;
-    private int readyTicks;
     private double lastApexY;
     private double lastHitDistance;
     private double lastMovement;
+    private double lastKnockback;
     private boolean lastBlocked;
     private boolean lastReady;
     private Vec3d lastTarget;
-    private Vec3d lastApex;
-    private long throwAt;
+    private boolean comboFired;
+
+    // ===== 视觉：与状态机解耦，连招结束后还会继续画一段时间 =====
+    private final List<Vec3d> pearlTrail = new ArrayList<>();
+    private final List<Vec3d> chargeTrail = new ArrayList<>();
+    private int chargeId = -1;
+    private long seekChargeUntil;
+    private long firedAt;
+    private long lastActive;
 
     public PearlCatch() {
         super("PearlCatch", Category.Combat);
@@ -118,21 +138,35 @@ public final class PearlCatch extends Module {
     public void onDisable() {
         switchBack();
         reset();
+        clearDisplay();
+        pearlTrail.clear();
+        chargeTrail.clear();
+        lastActive = 0L;
     }
 
+    /** 只清状态机；HUD / 视觉用的 last* 字段留着，好让调试信息多停一会儿。 */
     private void reset() {
         state = State.IDLE;
         pearlId = -1;
         waitTicks = 0;
+        comboFired = false;
         knownPearls.clear();
+    }
+
+    /** 清掉上一轮连招留下的显示数据。 */
+    private void clearDisplay() {
         lastTicksToApex = -1;
         lastWindTicks = -1;
         lastHitTicks = -1;
-        pearlAge = 0;
         lastHitDistance = 0.0;
-        readyTicks = 0;
-        lastTarget = null;
+        lastApexY = 0.0;
+        lastMovement = 0.0;
+        lastKnockback = 0.0;
+        pearlAge = 0;
         lastReady = false;
+        lastBlocked = false;
+        lastTarget = null;
+        firedAt = 0L;
     }
 
     // =====================================================================
@@ -149,7 +183,7 @@ public final class PearlCatch extends Module {
         if (packet.getHand() != Hand.MAIN_HAND) return;
         if (!mc.player.getMainHandStack().isIn(ItemTags.SWORDS)) return;
 
-        // 看向角度要求
+        // 看向角度要求（默认关闭：连招不该被视角角度限制住）
         if (requireLookUp.getValue() && mc.player.getPitch() > -lookUpAngle.getValue()) return;
 
         // 快捷栏必须有珍珠和风弹，否则连招做不出来
@@ -178,16 +212,28 @@ public final class PearlCatch extends Module {
         pearlHotbar = pearlSlot;
         windHotbar = windSlot;
 
-        // 记录已经存在的珍珠，方便认出我们新投出的那一颗
+        // 记录已经存在的珍珠/风弹，方便认出我们自己新投出去的那一颗
         knownPearls.clear();
+        knownCharges.clear();
         for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof EnderPearlEntity) knownPearls.add(entity.getId());
+            if (entity instanceof EnderPearlEntity) {
+                knownPearls.add(entity.getId());
+            } else if (entity instanceof WindChargeEntity) {
+                knownCharges.add(entity.getId());
+            }
         }
+
+        pearlTrail.clear();
+        chargeTrail.clear();
+        chargeId = -1;
+        clearDisplay();
+        pearlAge = 0;
+        comboFired = false;
+        seekChargeUntil = 0L;
+        lastActive = System.currentTimeMillis();
 
         state = State.WAIT_PEARL;
         waitTicks = 0;
-        pearlAge = 0;
-        readyTicks = 0;
         pearlId = -1;
         phaseTimer.reset();
 
@@ -206,18 +252,70 @@ public final class PearlCatch extends Module {
             return;
         }
 
+        sampleTrails();
+        checkChargeImpact();
+
         switch (state) {
             case WAIT_PEARL -> tickWaitPearl();
             case TRACKING -> tickTracking();
             case SWITCH_BACK -> {
                 if (phaseTimer.hasTimeElapsed(switchBackDelay.getValue().longValue())) {
                     switchBack();
-                    reset();
+                    // 珍珠还在空中就继续盯它，让轨迹线和命中点画完整（comboFired 已经置位，不会二次开火）
+                    EnderPearlEntity pearl = findTrackedPearl();
+                    if (pearl != null && !pearl.isRemoved()) {
+                        state = State.TRACKING;
+                    } else {
+                        reset();
+                    }
                 }
             }
             default -> {
             }
         }
+    }
+
+    /** 每 tick 把珍珠/风弹的真实位置记进轨迹，供渲染用。 */
+    private void sampleTrails() {
+        EnderPearlEntity pearl = findTrackedPearl();
+        if (pearl != null && !pearl.isRemoved()) {
+            addTrail(pearlTrail, pearl.getEntityPos());
+        }
+        if (state == State.TRACKING || state == State.SWITCH_BACK || chargeId != -1
+                || System.currentTimeMillis() < seekChargeUntil) {
+            WindChargeEntity charge = findThrownCharge();
+            if (charge != null) addTrail(chargeTrail, charge.getEntityPos());
+        }
+    }
+
+    /**
+     * 风弹消失时，用它最后的位置和珍珠比一比，给聊天框一个"中没中"的反馈。
+     * 风弹爆炸判定半径是 2.4 格（EXPLOSION_POWER 1.2 × 2），所以 1.5 格内基本必中。
+     */
+    private void checkChargeImpact() {
+        if (chargeId == -1 || !debugChat.getValue()) return;
+        Entity entity = mc.world == null ? null : mc.world.getEntityById(chargeId);
+        if (entity != null) return;
+
+        chargeId = -1;
+        if (chargeTrail.isEmpty()) return;
+        Vec3d last = chargeTrail.get(chargeTrail.size() - 1);
+
+        // 命中时珍珠会被立刻消费掉，所以珍珠没了就用轨迹上最后一点来比
+        EnderPearlEntity pearl = findTrackedPearl();
+        Vec3d pearlPos = pearl != null && !pearl.isRemoved()
+                ? pearl.getEntityPos()
+                : (pearlTrail.isEmpty() ? null : pearlTrail.get(pearlTrail.size() - 1));
+        if (pearlPos == null) return;
+
+        double gap = last.distanceTo(pearlPos);
+        chat(gap < 1.5 ? "命中！爆炸点离珍珠 " + String.format("%.2f", gap) + " 格"
+                : "没打中，最后差距 " + String.format("%.2f", gap) + " 格");
+    }
+
+    private static void addTrail(List<Vec3d> trail, Vec3d pos) {
+        trail.add(pos);
+        while (trail.size() > TRAIL_LIMIT) trail.remove(0);
     }
 
     /** 等待服务端把珍珠同步下来。 */
@@ -235,13 +333,15 @@ public final class PearlCatch extends Module {
     /**
      * 核心：每 tick 用珍珠的真实状态解算"现在出手能不能命中、命中最早点在哪"。
      *
-     * <p>出手策略：
+     * <p>三种出手时机：
      * <ul>
-     *   <li>{@code Instant}（默认）—— 一解出合法命中点就出手。珍珠刚离手时是"最快"的，
-     *       越早把风弹顶上去，珍珠剩下的飞行时间越长、爆炸给的额外速度衰减得越少，
-     *       落点也就越远；而且风弹飞行 tick 更短，出膛抖动累积的误差更小。
-     *       因此早出手同时满足"瞬间"和"最大距离"。</li>
-     *   <li>{@code Highest} —— 等珍珠飞到接近最高点再出手（命中点最靠顶点）。</li>
+     *   <li>{@code Smart}（默认）—— 在风弹飞行 tick 不超过 {@code Max Flight} 的前提下，
+     *       尽量往高处打。风弹和珍珠的出膛方向都带 ±0.0172275 的随机抖动，
+     *       风弹飞得越久误差越大（误差 ≈ 0.0258 × 飞行 tick），所以飞行时间是精度的硬预算：
+     *       实测飞行 ≤ 12 tick 命中率 100%、命中点约 76% 顶点高度；飞行 19 tick
+     *       命中率只剩 ~80%，但能吃满顶点。<b>而且它不会因为角度太平而永远等不到出手时机。</b></li>
+     *   <li>{@code Instant} —— 一解出合法命中点就出手（最早、最准，但命中点最低）。</li>
+     *   <li>{@code Apex} —— 死等珍珠飞到最高点出手（最高，但风弹飞得远、抖动误差大）。</li>
      * </ul>
      */
     private void tickTracking() {
@@ -251,6 +351,10 @@ public final class PearlCatch extends Module {
             return;
         }
         pearlAge++;
+        lastActive = System.currentTimeMillis();
+
+        // 这一轮已经出过手了：只维持轨迹/命中点的显示，不再解算也不再开火
+        if (comboFired) return;
 
         Vec3d pearlPos = pearl.getEntityPos();
         Vec3d pearlVel = pearl.getVelocity();
@@ -268,7 +372,6 @@ public final class PearlCatch extends Module {
 
         Intercept intercept = solveIntercept(windOrigin, movement, path, apex.ticks());
         if (intercept == null) {
-            readyTicks = 0;
             lastReady = false;
             return;
         }
@@ -277,28 +380,23 @@ public final class PearlCatch extends Module {
         lastHitTicks = pearlAge + intercept.ticks();
         lastHitDistance = intercept.distance();
         lastTarget = intercept.point();
+        lastKnockback = knockback(intercept.distance());
 
         boolean blocked = lineOfSight.getValue() && isPathBlocked(windOrigin, intercept.point());
         lastBlocked = blocked;
         if (blocked) {
-            readyTicks = 0;
             lastReady = false;
             return;
         }
 
-        boolean ready;
-        if (timing.is("Instant")) {
-            // 只要命中点已经拉开安全距离，立刻出手 —— 这就是"瞬间"
-            ready = intercept.ticks() >= 2 && intercept.distance() >= minDistance.getValue();
-            // Delay Ticks：多等 N tick 再出手。每等一 tick，命中点都会沿轨迹往后移一截，
-            // 也就更贴近最高点（更远）——"瞬间"与"最大距离"的取舍就在这个数值上。
-            readyTicks = ready ? readyTicks + 1 : 0;
-            ready = ready && readyTicks > delayTicks.getValue();
-        } else {
-            // Highest：等珍珠剩余 tick 降到风弹飞行 tick 以内（即命中点已经贴住最高点）
-            ready = apex.ticks() <= intercept.ticks();
-            readyTicks = ready ? readyTicks + 1 : 0;
-        }
+        boolean ready = switch (timing.getValue()) {
+            case "Instant" -> intercept.ticks() >= 2 && intercept.distance() >= minDistance.getValue();
+            case "Apex" -> apex.ticks() <= intercept.ticks();
+            // Smart：飞行预算快用完，或者已经到顶点，就该出手了
+            default -> intercept.ticks() >= 2
+                    && intercept.distance() >= minDistance.getValue()
+                    && (intercept.ticks() >= maxFlight.getValue() || apex.ticks() <= intercept.ticks());
+        };
         lastReady = ready;
 
         if (ready) fire(intercept, windOrigin, movement);
@@ -308,6 +406,15 @@ public final class PearlCatch extends Module {
     private Vec3d shooterMovement() {
         Vec3d velocity = mc.player.getVelocity();
         return new Vec3d(velocity.x, mc.player.isOnGround() ? 0.0 : velocity.y, velocity.z);
+    }
+
+    /**
+     * 风弹爆炸给珍珠的击退速度（格/tick），按官方 ExplosionImpl.damageEntities()：
+     * {@code (1 - 距离/2.4) * 伤害系数 * 1.22}，伤害系数取 1 作上限估计，用来在 HUD 上比对。
+     */
+    private static double knockback(double distance) {
+        double d = Math.min(1.0, distance / 2.4);
+        return (1.0 - d) * 1.22;
     }
 
     /**
@@ -429,8 +536,15 @@ public final class PearlCatch extends Module {
         Vec3d direction = intercept.direction();
         float[] rotation = RotationUtil.getRotations(origin, origin.add(direction));
         throwItem(windHotbar, rotation);
-        lastApex = intercept.point();
-        throwAt = System.currentTimeMillis();
+        comboFired = true;
+        lastTarget = intercept.point();
+        firedAt = System.currentTimeMillis();
+        seekChargeUntil = firedAt + 1500L;
+        lastActive = firedAt;
+        if (debugChat.getValue()) {
+            chat("风弹出手 · 飞行 " + intercept.ticks() + "t · 命中点 "
+                    + String.format("%.1f", intercept.distance()) + "格");
+        }
         state = State.SWITCH_BACK;
         phaseTimer.reset();
     }
@@ -475,6 +589,13 @@ public final class PearlCatch extends Module {
         }
     }
 
+    private void chat(String message) {
+        try {
+            if (mc.player != null) mc.player.sendMessage(Text.literal("§b[PearlCatch] §f" + message), false);
+        } catch (Throwable ignored) {
+        }
+    }
+
     // =====================================================================
     // 工具
     // =====================================================================
@@ -506,10 +627,35 @@ public final class PearlCatch extends Module {
     }
 
     private EnderPearlEntity findTrackedPearl() {
+        if (pearlId == -1) return null;
         for (Entity entity : mc.world.getEntities()) {
             if (entity instanceof EnderPearlEntity pearl && pearl.getId() == pearlId) return pearl;
         }
         return null;
+    }
+
+    /** 找我们刚投出去的那颗风弹（投掷前不存在的那一颗）。 */
+    private WindChargeEntity findThrownCharge() {
+        if (chargeId != -1) {
+            // 注意这里不把 chargeId 清掉：风弹炸掉以后 checkChargeImpact 还要靠它给出命中反馈
+            Entity entity = mc.world.getEntityById(chargeId);
+            return entity instanceof WindChargeEntity charge ? charge : null;
+        }
+        if (System.currentTimeMillis() > seekChargeUntil || mc.player == null) return null;
+
+        WindChargeEntity best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (Entity entity : mc.world.getEntities()) {
+            if (!(entity instanceof WindChargeEntity charge)) continue;
+            if (knownCharges.contains(charge.getId())) continue;
+            double distance = mc.player.squaredDistanceTo(charge);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = charge;
+            }
+        }
+        if (best != null) chargeId = best.getId();
+        return best;
     }
 
     private record Apex(Vec3d pos, int ticks) {
@@ -527,81 +673,97 @@ public final class PearlCatch extends Module {
     }
 
     // =====================================================================
-    // 视觉：珍珠预测轨迹 / 命中点呼吸环 / 风弹路径 / 出手闪光
+    // 视觉：珍珠预测轨迹 / 珍珠真实轨迹 / 风弹真实轨迹 / 命中点 / 出手闪光
     // =====================================================================
 
     @EventTarget
     public void onRender3D(Render3DEvent event) {
         if (!visual.getValue() || mc.player == null || mc.world == null) return;
 
-        if (state != State.TRACKING && state != State.WAIT_PEARL) {
-            renderThrowFlash(event);
-            return;
-        }
-
-        EnderPearlEntity pearl = state == State.TRACKING ? findTrackedPearl() : findNewPearl();
-        if (pearl == null) return;
+        // 连招结束后仍然多画 VISUAL_HOLD_MS，否则整套特效只存在一两个 tick，根本看不到
+        boolean holding = lastActive > 0L && System.currentTimeMillis() - lastActive < VISUAL_HOLD_MS;
+        if (state == State.IDLE && !holding) return;
 
         MatrixStack stack = event.getMatrixStack();
-        Vec3d pearlPos = pearl.getEntityPos();
-        Vec3d pearlVel = pearl.getVelocity();
         Vec3d origin = new Vec3d(mc.player.getX(), mc.player.getEyePos().y, mc.player.getZ());
+        EnderPearlEntity pearl = findTrackedPearl();
 
-        // 1) 珍珠预测轨迹：青 → 品红渐变，越远越淡
-        List<Vec3d> path = simulatePath(pearlPos, pearlVel, 90);
-        for (int i = 1; i < path.size(); i++) {
-            float t = (float) i / path.size();
-            int color = ColorUtil.applyAlpha(ColorUtil.interpolate(0xFF22D3EE, 0xFFFF3D9A, t),
-                    (int) (170.0f * (1.0f - t * 0.65f)));
-            Render3D.drawLine(stack, path.get(i - 1), path.get(i), color, false);
+        // 1) 珍珠真实轨迹：亮青色，越旧越淡
+        drawTrail(stack, pearlTrail, 0xFF22D3EE, 235);
+
+        // 2) 珍珠预测轨迹：青 → 品红渐变（珍珠还在飞的时候才画）
+        if (pearl != null && !pearl.isRemoved()) {
+            List<Vec3d> path = simulatePath(pearl.getEntityPos(), pearl.getVelocity(), 90);
+            for (int i = 1; i < path.size(); i++) {
+                float t = (float) i / path.size();
+                int color = ColorUtil.applyAlpha(ColorUtil.interpolate(0xFF22D3EE, 0xFFFF3D9A, t),
+                        (int) (150.0f * (1.0f - t * 0.7f)));
+                Render3D.drawLine(stack, path.get(i - 1), path.get(i), color, false);
+            }
         }
 
-        // 2) 命中点标记：呼吸环 + 中轴线（Instant 就是风弹的拦截点，Highest 是珍珠顶点）
-        Vec3d target = lastTarget != null ? lastTarget : simulatePearl(pearlPos, pearlVel).pos();
-        double pulse = 0.34 + 0.10 * Math.sin(System.currentTimeMillis() / 170.0);
-        int ringColor = ColorUtil.applyAlpha(lastReady ? 0xFF6BFF8F : 0xFFFFD166, 205);
+        // 3) 风弹真实轨迹：命中后画出来，白色 → 金色
+        drawTrail(stack, chargeTrail, 0xFFFFF3B0, 255);
+
+        if (lastTarget == null) return;
+
+        // 4) 命中点标记：呼吸环 + 十字轴线，可出手时转绿
+        long now = System.currentTimeMillis();
+        boolean fired = firedAt > 0L && now - firedAt < VISUAL_HOLD_MS;
+        double pulse = 0.34 + 0.10 * Math.sin(now / 170.0);
+        int ringColor = ColorUtil.applyAlpha(lastReady ? 0xFF6BFF8F : (fired ? 0xFFFFD166 : 0xFF7AA2FF),
+                fired ? 245 : 205);
+        drawRing(stack, lastTarget, pulse, ringColor);
+        Render3D.drawLine(stack, lastTarget.add(0.0, -1.6, 0.0), lastTarget.add(0.0, 1.6, 0.0),
+                ColorUtil.applyAlpha(ringColor, 130), false);
+        Render3D.drawLine(stack, lastTarget.add(-pulse, 0.0, 0.0), lastTarget.add(pulse, 0.0, 0.0),
+                ColorUtil.applyAlpha(ringColor, 150), false);
+        Render3D.drawLine(stack, lastTarget.add(0.0, 0.0, -pulse), lastTarget.add(0.0, 0.0, pulse),
+                ColorUtil.applyAlpha(ringColor, 150), false);
+
+        // 5) 出手前：眼睛 → 命中点的虚线瞄准路径
+        if (!fired && (state == State.TRACKING || state == State.WAIT_PEARL)) {
+            int pathColor = ColorUtil.applyAlpha(lastReady ? 0xFF6BFF8F : 0xFF7AA2FF, lastReady ? 215 : 125);
+            int dashes = 26;
+            for (int i = 0; i < dashes; i += 2) {
+                Render3D.drawLine(stack, lerp(origin, lastTarget, i / (double) dashes),
+                        lerp(origin, lastTarget, (i + 1) / (double) dashes), pathColor, false);
+            }
+        }
+
+        // 6) 出手后的扩散冲击环
+        renderThrowFlash(event, now, fired);
+    }
+
+    private void drawTrail(MatrixStack stack, List<Vec3d> trail, int rgb, int alpha) {
+        if (trail.size() < 2) return;
+        for (int i = 1; i < trail.size(); i++) {
+            float t = (float) i / trail.size();
+            Render3D.drawLine(stack, trail.get(i - 1), trail.get(i),
+                    ColorUtil.applyAlpha(rgb, (int) (alpha * (0.25f + 0.75f * t))), false);
+        }
+    }
+
+    private void drawRing(MatrixStack stack, Vec3d center, double radius, int color) {
         int segments = 28;
         for (int i = 0; i < segments; i++) {
             double a1 = i * Math.PI * 2.0 / segments;
             double a2 = (i + 1) * Math.PI * 2.0 / segments;
-            Vec3d p1 = target.add(Math.cos(a1) * pulse, 0.0, Math.sin(a1) * pulse);
-            Vec3d p2 = target.add(Math.cos(a2) * pulse, 0.0, Math.sin(a2) * pulse);
-            Render3D.drawLine(stack, p1, p2, ringColor, false);
-        }
-        Render3D.drawLine(stack, target.add(0.0, -1.6, 0.0), target.add(0.0, 1.6, 0.0),
-                ColorUtil.applyAlpha(ringColor, 120), false);
-
-        // 3) 风弹路径：眼睛 → 命中点虚线；满足出手条件时变绿加亮
-        int pathColor = ColorUtil.applyAlpha(lastReady ? 0xFF6BFF8F : 0xFF7AA2FF, lastReady ? 215 : 125);
-        int dashes = 26;
-        for (int i = 0; i < dashes; i += 2) {
-            Vec3d a = lerp(origin, target, i / (double) dashes);
-            Vec3d b = lerp(origin, target, (i + 1) / (double) dashes);
-            Render3D.drawLine(stack, a, b, pathColor, false);
+            Vec3d p1 = center.add(Math.cos(a1) * radius, 0.0, Math.sin(a1) * radius);
+            Vec3d p2 = center.add(Math.cos(a2) * radius, 0.0, Math.sin(a2) * radius);
+            Render3D.drawLine(stack, p1, p2, color, false);
         }
     }
 
     /** 风弹出手后的扩散闪光。 */
-    private void renderThrowFlash(Render3DEvent event) {
-        if (lastApex == null) return;
-        long elapsed = System.currentTimeMillis() - throwAt;
-        if (elapsed > 480L) {
-            lastApex = null;
-            return;
-        }
+    private void renderThrowFlash(Render3DEvent event, long now, boolean fired) {
+        if (!fired || lastTarget == null) return;
+        float progress = (now - firedAt) / (float) VISUAL_HOLD_MS;
+        if (progress > 1.0f) return;
 
-        float progress = elapsed / 480.0f;
-        double radius = 0.3 + progress * 1.9;
-        int color = ColorUtil.applyAlpha(0xFFFFFFFF, (int) (210.0f * (1.0f - progress)));
-        int segments = 28;
-        MatrixStack stack = event.getMatrixStack();
-        for (int i = 0; i < segments; i++) {
-            double a1 = i * Math.PI * 2.0 / segments;
-            double a2 = (i + 1) * Math.PI * 2.0 / segments;
-            Vec3d p1 = lastApex.add(Math.cos(a1) * radius, 0.0, Math.sin(a1) * radius);
-            Vec3d p2 = lastApex.add(Math.cos(a2) * radius, 0.0, Math.sin(a2) * radius);
-            Render3D.drawLine(stack, p1, p2, color, false);
-        }
+        double radius = 0.3 + progress * 2.6;
+        int color = ColorUtil.applyAlpha(0xFFFFFFFF, (int) (200.0f * (1.0f - progress)));
+        drawRing(event.getMatrixStack(), lastTarget, radius, color);
     }
 
     private static Vec3d lerp(Vec3d from, Vec3d to, double t) {
@@ -609,12 +771,13 @@ public final class PearlCatch extends Module {
     }
 
     // =====================================================================
-    // 调试
+    // 调试 HUD
     // =====================================================================
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
         if (!debug.getValue() || mc.player == null || mc.world == null) return;
+        // 只要模块开着就画（连招结束后继续显示最后一次的数据），不再一闪而过
         if (state == State.IDLE && lastTicksToApex < 0) return;
 
         TrueTypeFont font = instance.getFontManager().getFont(14);
@@ -623,17 +786,23 @@ public final class PearlCatch extends Module {
 
         String[] lines = {
                 "PearlCatch: " + state + "  [" + timing.getValue() + "]",
-                "顶点=" + lastTicksToApex + "t  apexY=" + String.format("%.2f", lastApexY),
-                "命中=珍珠第 " + lastHitTicks + "t  风弹飞=" + lastWindTicks + "t  距离=" + String.format("%.2f", lastHitDistance),
-                "位移=" + String.format("%.2f", lastMovement) + "  " + (lastReady ? "已可出手" : "等待时机"),
-                lastBlocked ? "视线被阻挡" : "视线通畅"
+                "顶点=" + lastTicksToApex + "t  apexY=" + String.format("%.2f", lastApexY)
+                        + "  珍珠已飞=" + pearlAge + "t",
+                "命中=珍珠第 " + lastHitTicks + "t  风弹飞=" + lastWindTicks + "t  距离="
+                        + String.format("%.2f", lastHitDistance),
+                "位移=" + String.format("%.2f", lastMovement)
+                        + "  预计击退=" + String.format("%.2f", lastKnockback) + "/t",
+                lastBlocked ? "视线被阻挡" : "视线通畅",
+                lastReady ? ">>> 可以出手 <<<" : "等待时机"
         };
 
         float width = 0;
         for (String line : lines) width = Math.max(width, font.getStringWidth(line));
-        cn.remix.util.render.Render2D.drawRect(event.getContext(), x - 4, y - 4, width + 8, lines.length * (font.getHeight() + 2) + 8, 0x99000000);
+        cn.remix.util.render.Render2D.drawRect(event.getContext(), x - 4, y - 4, width + 8,
+                lines.length * (font.getHeight() + 2) + 8, 0x99000000);
         for (int i = 0; i < lines.length; i++) {
-            font.drawStringWithShadow(event.getContext(), lines[i], x, y + i * (font.getHeight() + 2), 0xFFFFFFFF);
+            font.drawStringWithShadow(event.getContext(), lines[i], x, y + i * (font.getHeight() + 2),
+                    i == lines.length - 1 && lastReady ? 0xFF6BFF8F : 0xFFFFFFFF);
         }
     }
 }

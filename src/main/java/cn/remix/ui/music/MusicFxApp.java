@@ -47,6 +47,9 @@ public final class MusicFxApp extends Application implements IMinecraft {
     private volatile long playStartNanos;
     private volatile double durFx;
     private volatile double volumeFx = 0.8;
+    /** 淡入淡出时真正下发给 MediaPlayer 的音量；-1 表示跟随 volumeFx */
+    private volatile double fadeVolumeFx = -1;
+    private Timeline fadeAnim;
 
     private javafx.scene.media.MediaPlayer player;
     private String currentUrl;
@@ -182,6 +185,12 @@ public final class MusicFxApp extends Application implements IMinecraft {
 
     void playFx(String url, double seekSeconds, boolean autoplay, Runnable ended) {
         disposeFx();
+        if (fadeAnim != null) {
+            fadeAnim.stop();
+            fadeAnim = null;
+        }
+        fadeVolumeFx = -1;   // 新歌直接按目标音量播，不做淡入
+        durFx = 0;   // 换歌了：旧时长立刻作废，等 setOnReady 拿到真实值
         currentUrl = url;
         endedHandler = ended;
         try {
@@ -219,10 +228,13 @@ public final class MusicFxApp extends Application implements IMinecraft {
     }
 
     void pauseFx() {
-        if (player == null) return;
-        syncClockFx();
-        playingFx = false;
-        player.pause();
+        if (player == null || !playingFx) return;
+        // 先淡出再真正暂停，避免"啪"的断音
+        fadeVolumeFx(0.0, () -> {
+            syncClockFx();
+            playingFx = false;
+            if (player != null) player.pause();
+        });
     }
 
     void resumeFx() {
@@ -234,7 +246,10 @@ public final class MusicFxApp extends Application implements IMinecraft {
         syncClockFx();
         playingFx = true;
         playStartNanos = System.nanoTime();
+        fadeVolumeFx = 0.0;   // 从静音淡入
+        applyVolumeFx();
         player.play();
+        fadeVolumeFx(volumeFx, null);
     }
 
     void seekFx(double seconds) {
@@ -244,6 +259,11 @@ public final class MusicFxApp extends Application implements IMinecraft {
     }
 
     void stopFx() {
+        if (fadeAnim != null) {
+            fadeAnim.stop();
+            fadeAnim = null;
+        }
+        fadeVolumeFx = -1;
         playingFx = false;
         baseSeconds = 0;
         disposeFx();
@@ -251,7 +271,44 @@ public final class MusicFxApp extends Application implements IMinecraft {
 
     void setVolumeFx(double v) {
         volumeFx = Math.max(0, Math.min(1, v));
-        if (player != null) player.setVolume(volumeFx);
+        // 正在淡入淡出时只更新目标值，别把动画打断
+        if (fadeAnim == null) applyVolumeFx();
+    }
+
+    private void applyVolumeFx() {
+        if (player == null) return;
+        double v = fadeVolumeFx >= 0 ? fadeVolumeFx : volumeFx;
+        player.setVolume(Math.max(0, Math.min(1, v)));
+    }
+
+    /** 音量渐变：从当前实际音量滑到 to（约 260ms），结束后回调。 */
+    private void fadeVolumeFx(double to, Runnable onDone) {
+        if (fadeAnim != null) {
+            fadeAnim.stop();
+            fadeAnim = null;
+        }
+        final double from = fadeVolumeFx >= 0 ? fadeVolumeFx : volumeFx;
+        final long start = System.nanoTime();
+        final long durNs = 260_000_000L;
+        Timeline tl = new Timeline(new KeyFrame(Duration.millis(16), e -> {
+            double p = Math.min(1.0, (System.nanoTime() - start) / (double) durNs);
+            double eased = p * p * (3.0 - 2.0 * p);   // smoothstep
+            fadeVolumeFx = from + (to - from) * eased;
+            applyVolumeFx();
+            if (p >= 1.0) {
+                // 淡入结束就交还给 volumeFx；淡出到 0 则保持静音
+                fadeVolumeFx = to > 0.0 ? -1.0 : 0.0;
+                applyVolumeFx();
+                if (fadeAnim != null) {
+                    fadeAnim.stop();
+                    fadeAnim = null;
+                }
+                if (onDone != null) onDone.run();
+            }
+        }));
+        tl.setCycleCount(Animation.INDEFINITE);
+        tl.play();
+        fadeAnim = tl;
     }
 
     private void syncClockFx() {
@@ -280,6 +337,17 @@ public final class MusicFxApp extends Application implements IMinecraft {
     }
 
     double getDurationFx() {
+        // setOnReady 时若媒体还没解析出时长（Duration.UNKNOWN），这里再补读一次，
+        // 直到拿到真正的曲目时长为止 —— 界面上的总时长就靠它
+        if (durFx <= 0 && player != null) {
+            try {
+                Duration d = player.getMedia().getDuration();
+                if (d != null && !Duration.UNKNOWN.equals(d) && d.toSeconds() > 0) {
+                    durFx = d.toSeconds();
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         return durFx;
     }
 

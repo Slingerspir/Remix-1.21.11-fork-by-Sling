@@ -53,6 +53,7 @@ public final class MusicManager implements IMinecraft {
     private int currentIndex = -1;
     private boolean playing;
     private double progressSeconds;
+    private double durationSeconds;
     private double volume = 0.8;
     private boolean translationEnabled = true;
     private boolean autoAdvancing;
@@ -283,6 +284,7 @@ public final class MusicManager implements IMinecraft {
         if (index < 0 || index >= playlist.size()) return;
         currentIndex = index;
         progressSeconds = Math.max(0, seekSeconds);
+        durationSeconds = 0;   // 新歌时长未知，等媒体解析出来
         playing = true;
         lastStartWall = System.currentTimeMillis();
         generation++;
@@ -431,6 +433,21 @@ public final class MusicManager implements IMinecraft {
             }
         }
         return progressSeconds;
+    }
+
+    /**
+     * 当前歌曲的真实时长（秒），来自 JavaFX MediaPlayer 解析出的媒体时长。
+     * 还没解析出来时返回 0（界面应显示 --:-- 而不是编一个假时长）。
+     */
+    public double getDuration() {
+        if (FxMusicRuntime.isRunning()) {
+            double d = FxMusicRuntime.getDurationSeconds();
+            if (d > 0) {
+                durationSeconds = d;
+                return d;
+            }
+        }
+        return durationSeconds;
     }
 
     // ---------------- 歌词 / 翻译 ----------------

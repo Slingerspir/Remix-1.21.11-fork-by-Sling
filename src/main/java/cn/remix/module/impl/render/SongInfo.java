@@ -76,13 +76,20 @@ public final class SongInfo extends Module {
 
         if (hasSong && showProgress.getValue()) {
             double progress = m.getProgress();
-            double max = 240.0;
+            // 真实时长来自 JavaFX MediaPlayer 解析出的媒体时长；没解析出来就显示 --:--
+            double max = m.getDuration();
             float barY = py + cardH - 26;
             Render2D.drawRect(event.getContext(), textX, barY, textW, 2.0f, 0x40FFFFFF);
-            float fill = (float) Math.min(1.0, progress / max);
-            Render2D.drawRect(event.getContext(), textX, barY, textW * fill, 2.0f, accent.getValue().getRGB());
 
-            String timeText = formatTime(progress) + " / " + formatTime(max);
+            String timeText;
+            if (max > 0) {
+                if (progress > max) progress = max;
+                float fill = (float) (progress / max);
+                Render2D.drawRect(event.getContext(), textX, barY, textW * fill, 2.0f, accent.getValue().getRGB());
+                timeText = formatTime(progress) + " / " + formatTime(max);
+            } else {
+                timeText = formatTime(progress) + " / --:--";
+            }
             smallFont.drawStringWithShadow(event.getContext(), timeText, textX, barY + 5, 0x8899A2B0);
         }
 

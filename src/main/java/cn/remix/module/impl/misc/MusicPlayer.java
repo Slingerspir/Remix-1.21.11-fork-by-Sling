@@ -212,20 +212,25 @@ public final class MusicPlayer extends Module {
                         ColorUtil.applyAlpha(0xFFB9C4D2, (int) (255 * alpha)));
             }
 
-            if (cur && translation.getValue()) {
-                String tr = m.translationAt(m.getLyrics().get(i).getTime());
-                if (tr != null && !tr.isEmpty()) {
+            if (cur) {
+                // 下划线位置实时算：没有双语就贴原歌词，有双语就贴翻译，翻译字号会被压缩也照样跟住
+                float underlineY = y + use.getHeight();
+                String tr = translation.getValue() ? m.translationAt(m.getLyrics().get(i).getTime()) : null;
+                if (tr != null && tr.isEmpty()) tr = null;
+                if (tr != null) {
                     TrueTypeFont tf = transFont;
                     float tw = tf.getStringWidth(tr);
                     if (tw > maxW) {
                         tf = instance.getFontManager().getFont(Math.max(11, (int) (14 * maxW / tw)));
                         tw = tf.getStringWidth(tr);
                     }
-                    tf.drawStringWithShadow(event.getContext(), tr, sw / 2f - tw / 2f, y + use.getHeight() + 3,
+                    float trY = underlineY + 3;
+                    tf.drawStringWithShadow(event.getContext(), tr, sw / 2f - tw / 2f, trY,
                             ColorUtil.applyAlpha(0xFF5BC2B8, 245));
+                    underlineY = trY + tf.getHeight();
                 }
-                Render2D.drawRect(event.getContext(), x - 8, y + use.getHeight() + (tr != null && !tr.isEmpty() ? 22 : 2),
-                        w0 + 16, 2, ColorUtil.applyAlpha(0xFF10B981, 230));
+                Render2D.drawRect(event.getContext(), x - 8, underlineY + 2, w0 + 16, 2,
+                        ColorUtil.applyAlpha(0xFF10B981, 230));
             }
         }
     }

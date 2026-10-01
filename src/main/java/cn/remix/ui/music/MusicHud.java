@@ -8,6 +8,7 @@ import cn.remix.util.render.Render2D;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.util.Identifier;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,11 +65,21 @@ public final class MusicHud implements IMinecraft {
     private final float[] spec = new float[22];
     private boolean showTrans = true;
     private boolean dragging;
+    private boolean volDragging;
+    private boolean tipPending;
+    private float tipMx, tipMy;
+    private double tipAt;
     private float dragRatio;
 
     public void setOpen(boolean open) {
         this.open = open;
-        if (open) lastFrameMs = System.currentTimeMillis();
+        if (open) {
+            lastFrameMs = System.currentTimeMillis();
+        } else {
+            // 关界面时别把拖动状态留着，否则下次打开会跟着鼠标乱跑
+            dragging = false;
+            volDragging = false;
+        }
     }
 
     public boolean isOpen() {
@@ -279,7 +290,7 @@ public final class MusicHud implements IMinecraft {
             drawTransport(ctx, m, mx, my, ty + 40);
             float py = ty + 40 + playH + 20;
             drawProgress(ctx, m, mx, my, py, progress);
-            drawVolume(ctx, m, py + 26);
+            drawVolume(ctx, m, py + 26, mx, my);
         } else {
             TrueTypeFont t1 = instance.getFontManager().getFont(17);
             String na = "未播放";
@@ -287,6 +298,11 @@ public final class MusicHud implements IMinecraft {
         }
 
         drawLyrics(ctx, m, a, progress);
+        // 进度条浮层压到最后画，免得被右侧歌词盖住
+        if (tipPending) {
+            tipPending = false;
+            drawSeekTooltip(ctx, m, tipMx, tipMy, tipAt);
+        }
         Render2D.setGlobalAlpha(1f);
     }
 
@@ -360,29 +376,122 @@ public final class MusicHud implements IMinecraft {
         t.drawStringWithShadow(ctx, fmt(total), progX + progW - t.getStringWidth(fmt(total)), progY + 12, C_TEXT3);
 
         if ((dragging || hover) && total > 0) {
-            float tx = Math.max(progX + 16, Math.min(progX + progW - 16, knobX));
-            String tip = fmt(shown);
-            TrueTypeFont tf = instance.getFontManager().getFont(11);
-            float tw = tf.getStringWidth(tip);
-            square(ctx, tx - tw / 2 - 5, progY - 26, tw + 10, 15, 0, 0xF2FFFFFF);
-            tf.drawStringWithShadow(ctx, tip, tx - tw / 2, progY - 23, C_ACCENT);
+            // 鼠标位置对应的播放时间，用来找那一刻的歌词；真正绘制压到帧末
+            tipPending = true;
+            tipMx = mx;
+            tipMy = my;
+            tipAt = clamp01((mx - progX) / progW) * total;
         }
     }
 
-    private void drawVolume(DrawContext ctx, MusicManager m, float vy) {
+    /**
+     * 悬停/拖动进度条时，在鼠标上方浮出那一刻的歌词（有翻译就一起显示）。
+     * 上方空间不够时自动翻到鼠标下方，横向也会被夹在界面内。
+     */
+    private void drawSeekTooltip(DrawContext ctx, MusicManager m, float mx, float my, double at) {
+        String lyric = null;
+        String trans = null;
+        int idx = lyricIndexAt(m, at);
+        if (idx >= 0) {
+            lyric = m.getLyrics().get(idx).getText();
+            if (showTrans) trans = m.translationAt(m.getLyrics().get(idx).getTime());
+        }
+        if (lyric != null && lyric.isEmpty()) lyric = null;
+        if (trans != null && trans.isEmpty()) trans = null;
+
+        TrueTypeFont small = instance.getFontManager().getFont(11);
+        TrueTypeFont text = instance.getFontManager().getFont(14);
+        float maxTextW = Math.min(hudW - 60, 340);
+
+        String timeStr = fmt(at);
+        if (lyric != null) lyric = clip(text, lyric, maxTextW);
+        if (trans != null) trans = clip(small, trans, maxTextW);
+
+        float padX = 9.0f, padY = 6.0f, gap = 3.0f;
+        float w = small.getStringWidth(timeStr);
+        float h = small.getHeight();
+        if (lyric != null) {
+            w = Math.max(w, text.getStringWidth(lyric));
+            h += gap + text.getHeight();
+        }
+        if (trans != null) {
+            w = Math.max(w, small.getStringWidth(trans));
+            h += gap + small.getHeight();
+        }
+        w += padX * 2;
+        h += padY * 2;
+
+        float bx = Math.max(hudX + 8, Math.min(hudX + hudW - w - 8, mx - w / 2f));
+        float by = my - h - 12;
+        if (by < hudY + 8) by = my + 16;   // 上方放不下就翻到下面
+
+        square(ctx, bx, by, w, h, 0, 0xF2FFFFFF);
+        Render2D.drawRect(ctx, bx, by, w, 1, 0xFFDDE6EF);
+        Render2D.drawRect(ctx, bx, by + h - 1, w, 1, 0xFFDDE6EF);
+        Render2D.drawRect(ctx, bx, by, 2, h, C_ACCENT2);
+
+        float ty = by + padY;
+        small.drawStringWithShadow(ctx, timeStr, bx + padX, ty, C_ACCENT2);
+        ty += small.getHeight() + gap;
+        if (lyric != null) {
+            text.drawStringWithShadow(ctx, lyric, bx + padX, ty, C_TEXT);
+            ty += text.getHeight() + gap;
+        }
+        if (trans != null) {
+            small.drawStringWithShadow(ctx, trans, bx + padX, ty, 0xFF5BC2B8);
+        }
+    }
+
+    /** 找到 time 时刻正在唱的那一行（没有则 -1）。 */
+    private static int lyricIndexAt(MusicManager m, double time) {
+        List<MusicManager.LrcLine> lines = m.getLyrics();
+        int idx = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).getTime() <= time) idx = i;
+            else break;
+        }
+        return idx;
+    }
+
+    /** 按像素宽度裁字，保证浮层不会撑出界面。 */
+    private static String clip(TrueTypeFont font, String s, float maxW) {
+        if (font.getStringWidth(s) <= maxW) return s;
+        StringBuilder sb = new StringBuilder();
+        for (char c : s.toCharArray()) {
+            if (font.getStringWidth(sb.toString() + c + "...") > maxW) break;
+            sb.append(c);
+        }
+        return sb + "...";
+    }
+
+    private void drawVolume(DrawContext ctx, MusicManager m, float vy, float mx, float my) {
         TrueTypeFont t = instance.getFontManager().getFont(11);
         t.drawStringWithShadow(ctx, "音量", leftX, vy, C_TEXT3);
-        volW = leftInnerW - 44;
+        volW = leftInnerW - 60;
         volX = leftX + 38;
         volY = vy + 3;
+
+        boolean active = volDragging || inside(mx, my, volX - 8, volY - 8, volW + 16, 22);
+        // 拖动中：每帧都用鼠标横坐标更新音量，这就是"滑条"
+        if (volDragging) m.setVolume(clamp01((mx - volX) / volW));
+
         double v = m.getVolume();
-        square(ctx, volX, volY, volW, 6, 0, 0xFFD9E2EC);
+        float trackH = active ? 8 : 6;
+        float trackY = volY + (6 - trackH) / 2f;
+        square(ctx, volX, trackY, volW, trackH, 0, 0xFFD9E2EC);
         if (v > 0) {
-            Render2D.beginScissor(ctx, volX, volY, (float) (volW * v), 6);
-            square(ctx, volX, volY, volW, 6, 0, C_ACCENT2);
+            Render2D.beginScissor(ctx, volX, trackY, (float) (volW * v), trackH);
+            square(ctx, volX, trackY, volW, trackH, 0, C_ACCENT2);
             Render2D.endScissor(ctx);
         }
-        Render2D.drawRect(ctx, volX + (float) (volW * v) - 1, volY - 3, 2, 12, 0xFF222F3E);
+        float knobX = volX + (float) (volW * v);
+        float knobW = active ? 4 : 2;
+        Render2D.drawRect(ctx, knobX - knobW / 2f, trackY - 3, knobW, trackH + 6,
+                active ? C_ACCENT2 : 0xFF222F3E);
+
+        TrueTypeFont pf = instance.getFontManager().getFont(10);
+        String pct = Math.round(v * 100) + "%";
+        pf.drawStringWithShadow(ctx, pct, volX + volW + 6, vy + 1, active ? C_ACCENT2 : C_TEXT3);
     }
 
     // ===================== 右侧歌词 =====================
@@ -564,6 +673,7 @@ public final class MusicHud implements IMinecraft {
                 dragging = false;
                 seekRatio(m, mx);
             }
+            volDragging = false;   // 松开即结束音量拖动
             return open;
         }
         if (action != 1) return open;
@@ -601,7 +711,8 @@ public final class MusicHud implements IMinecraft {
                 seekRatio(m, mx);
                 return true;
             }
-            if (inside(mx, my, volX - 6, volY - 6, volW + 12, 18)) {
+            if (inside(mx, my, volX - 8, volY - 8, volW + 16, 22)) {
+                volDragging = true;
                 m.setVolume(clamp01((mx - volX) / volW));
                 return true;
             }
