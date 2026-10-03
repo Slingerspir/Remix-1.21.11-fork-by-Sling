@@ -74,6 +74,17 @@ public abstract class MixinMinecraftClient implements IMinecraft {
         }
     }
 
+    /**
+     * BedBreaker 接管挖掘期间，整段跳过原版的挖掘处理。
+     *
+     * <p>否则原版每 tick 都会按攻击键状态插手：没按住时调 cancelBlockBreaking() 把进度清零，
+     * 按住时又按准星把挖掘目标切走 —— 两种情况都会让我们手动累积的进度归零，床永远挖不掉。</p>
+     */
+    @Inject(method = "handleBlockBreaking", at = @At("HEAD"), cancellable = true)
+    private void onHandleBlockBreaking(boolean breaking, CallbackInfo ci) {
+        if (cn.remix.module.impl.world.BedBreaker.isHolding()) ci.cancel();
+    }
+
     @Inject(method = "getTargetMillisPerTick", at = @At("HEAD"), cancellable = true)
     private void onGetTargetMillisPerTick(float tickTime, CallbackInfoReturnable<Float> cir) {
         if (mc.world != null && TasManager.isTickRateActive()) {

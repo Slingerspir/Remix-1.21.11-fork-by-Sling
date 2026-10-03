@@ -4,6 +4,7 @@ import cn.remix.management.MusicManager;
 import cn.remix.util.IMinecraft;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
+import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -54,6 +55,14 @@ public final class MusicFxApp extends Application implements IMinecraft {
     private javafx.scene.media.MediaPlayer player;
     private String currentUrl;
     private Runnable endedHandler;
+    private Runnable failedHandler;
+    /** 换歌令牌：回调靠它判断自己是不是"过期播放器"的回声 */
+    private long playToken;
+    private int retryCount;
+    private double currentSeek;
+    private boolean currentAutoplay;
+    /** 同一首最多重试几次再判定失败 */
+    private static final int MAX_RETRY = 2;
 
     // 最近一次 UI 数据（叠加层重新打开时补刷）
     private String lastListJson;
@@ -184,30 +193,43 @@ public final class MusicFxApp extends Application implements IMinecraft {
     // ===================== 播放 =====================
 
     void playFx(String url, double seekSeconds, boolean autoplay, Runnable ended) {
+        playFx(url, seekSeconds, autoplay, ended, null);
+    }
+
+    void playFx(String url, double seekSeconds, boolean autoplay, Runnable ended, Runnable failed) {
+        // 换歌令牌：旧播放器的异步回调（尤其是 onError）凭这个作废，绝不能影响新歌
+        playToken++;
+        retryCount = 0;
+        fadeVolumeFx = -1;   // 新歌直接按目标音量播，不做淡入
+        durFx = 0;           // 换歌了：旧时长立刻作废，等 setOnReady 拿到真实值
+        endedHandler = ended;
+        failedHandler = failed;
+        currentSeek = seekSeconds;
+        currentAutoplay = autoplay;
+        startFx(url, playToken);
+    }
+
+    /** 建播放器并装载。retry 时会用同一个 token 再走一遍。 */
+    private void startFx(String url, long token) {
         disposeFx();
         if (fadeAnim != null) {
             fadeAnim.stop();
             fadeAnim = null;
         }
-        fadeVolumeFx = -1;   // 新歌直接按目标音量播，不做淡入
-        durFx = 0;   // 换歌了：旧时长立刻作废，等 setOnReady 拿到真实值
         currentUrl = url;
-        endedHandler = ended;
         try {
             javafx.scene.media.Media media = new javafx.scene.media.Media(url);
             javafx.scene.media.MediaPlayer p = new javafx.scene.media.MediaPlayer(media);
             p.setVolume(volumeFx);
-            p.setOnError(() -> {
-                playingFx = false;
-                Runnable h = endedHandler;
-                if (h != null) mc.execute(h);
-            });
+            // 回调全部带 token 校验：只有"当前这一轮"的播放器才有资格改状态
+            p.setOnError(() -> handleError(token, url));
             p.setOnReady(() -> {
+                if (token != playToken) return;
                 Duration d = p.getMedia().getDuration();
                 durFx = (d != null && !Duration.UNKNOWN.equals(d)) ? d.toSeconds() : 0;
-                if (seekSeconds > 0) p.seek(Duration.seconds(seekSeconds));
-                if (autoplay) {
-                    baseSeconds = Math.max(0, seekSeconds);
+                if (currentSeek > 0) p.seek(Duration.seconds(currentSeek));
+                if (currentAutoplay) {
+                    baseSeconds = Math.max(0, currentSeek);
                     playStartNanos = System.nanoTime();
                     playingFx = true;
                     p.play();
@@ -216,6 +238,7 @@ public final class MusicFxApp extends Application implements IMinecraft {
                 }
             });
             p.setOnEndOfMedia(() -> {
+                if (token != playToken) return;
                 playingFx = false;
                 baseSeconds = durFx > 0 ? durFx : baseSeconds;
                 Runnable h = endedHandler;
@@ -223,8 +246,42 @@ public final class MusicFxApp extends Application implements IMinecraft {
             });
             player = p;
         } catch (Throwable t) {
-            playingFx = false;
+            // 构造就失败（URL 空/非法）也要走失败流程，别把状态卡住
+            handleError(token, url);
         }
+    }
+
+    /**
+     * 播放出错。分两种情况：
+     * 1. token 不是当前轮次 —— 是被 dispose 掉的旧播放器在报错，直接丢掉。
+     *    这正是"切歌偶尔放不出来还跳到下一首"的元凶：以前这里会去调用<b>当前</b>歌曲的
+     *    ended 回调，于是新歌刚起就被当成"播完了"。
+     * 2. 真的是当前这首出错 —— 先原地重试两次（很多失败只是加载被打断），
+     *    仍不行才交给 failed 回调，由上层决定跳过还是停下。
+     */
+    private void handleError(long token, String url) {
+        if (token != playToken) return;
+        double resumeAt = getNowFx();   // 先记下播到哪了，重试时从这儿接上
+        playingFx = false;
+        if (retryCount < MAX_RETRY) {
+            retryCount++;
+            currentSeek = Math.max(currentSeek, resumeAt);
+            final long t = token;
+            PauseTransition wait = new PauseTransition(Duration.millis(400));
+            wait.setOnFinished(e -> {
+                if (t != playToken) return;   // 等的时候用户又切歌了
+                startFx(url, t);
+            });
+            wait.play();
+            return;
+        }
+        Runnable f = failedHandler;
+        if (f != null) {
+            mc.execute(f);
+            return;
+        }
+        Runnable h = endedHandler;
+        if (h != null) mc.execute(h);
     }
 
     void pauseFx() {
@@ -240,7 +297,7 @@ public final class MusicFxApp extends Application implements IMinecraft {
     void resumeFx() {
         if (player == null) {
             String u = currentUrl;
-            if (u != null) playFx(u, getNowFx(), true, endedHandler);
+            if (u != null) playFx(u, getNowFx(), true, endedHandler, failedHandler);
             return;
         }
         syncClockFx();
@@ -259,6 +316,7 @@ public final class MusicFxApp extends Application implements IMinecraft {
     }
 
     void stopFx() {
+        playToken++;   // 让还在排队的重试作废
         if (fadeAnim != null) {
             fadeAnim.stop();
             fadeAnim = null;
@@ -324,6 +382,11 @@ public final class MusicFxApp extends Application implements IMinecraft {
     private void disposeFx() {
         if (player != null) {
             try {
+                // 关键：先把回调摘掉再 dispose。否则被丢弃的播放器仍可能在加载失败时
+                // 异步回调进来，而回调读的是"当前"的 endedHandler，会把新歌误判成播完。
+                player.setOnError(null);
+                player.setOnReady(null);
+                player.setOnEndOfMedia(null);
                 player.stop();
                 player.dispose();
             } catch (Throwable ignored) {

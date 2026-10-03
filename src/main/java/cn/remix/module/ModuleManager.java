@@ -22,6 +22,7 @@ import cn.remix.module.impl.misc.Spammer;
 import cn.remix.module.impl.move.*;
 import cn.remix.module.impl.player.*;
 import cn.remix.module.impl.render.*;
+import cn.remix.module.impl.world.BedBreaker;
 import cn.remix.module.impl.world.Clutch;
 import cn.remix.module.impl.world.Protocol;
 import cn.remix.module.impl.world.Scaffold;
@@ -47,6 +48,7 @@ public class ModuleManager implements IMinecraft {
                 new Notification(),
                 new ClickGui(),
                 new Scaffold(),
+                new BedBreaker(),
                 new Protocol(),
                 new Clutch(),
                 new WorldTweaks(),

@@ -1,6 +1,7 @@
 package cn.remix.module.impl.misc;
 
 import cn.remix.event.base.annotation.EventTarget;
+import cn.remix.event.impl.CharInputEvent;
 import cn.remix.event.impl.KeyInputEvent;
 import cn.remix.event.impl.MouseClickEvent;
 import cn.remix.event.impl.MouseScrollEvent;
@@ -20,10 +21,12 @@ import org.lwjgl.glfw.GLFW;
 
 public final class MusicPlayer extends Module {
     private final ModeValue server = new ModeValue("Server", "netease", "netease", "tencent");
+    private final StringValue apiUrl = new StringValue("API", "https://meting.mikus.ink/api");
     private final StringValue playlistId = new StringValue("Playlist ID", "0");
     private final BoolValue altControl = new BoolValue("Alt Control", true);
     private final BoolValue autoPlay = new BoolValue("Auto Play", true);
     private final BoolValue translation = new BoolValue("Translation", true);
+    private final BoolValue lyricSearch = new BoolValue("Lyric Search", true);
     private final BoolValue resume = new BoolValue("Resume", true);
 
     private final MusicHud hud = new MusicHud();
@@ -42,6 +45,8 @@ public final class MusicPlayer extends Module {
     @Override
     public void onEnable() {
         MusicManager m = MusicManager.getInstance();
+        m.setApiUrl(apiUrl.getValue());
+        m.setLyricSearchEnabled(lyricSearch.getValue());
         m.setTranslationEnabled(translation.getValue());
         hud.setShowTranslation(translation.getValue());
         if (resume.getValue() && m.doResume(server.getValue(), playlistId.getValue())) {
@@ -79,6 +84,8 @@ public final class MusicPlayer extends Module {
     public void onKey(KeyInputEvent event) {
         if (!inGame()) return;
         int k = event.getKey();
+        // 搜索框聚焦时优先吃掉按键（退格/回车/Esc）
+        if (hud.isOpen() && hud.onKey(k)) return;
         if (altControl.getValue() && k == GLFW.GLFW_KEY_RIGHT_ALT) {
             boolean next = !hud.isOpen();
             hud.setOpen(next);
@@ -91,9 +98,24 @@ public final class MusicPlayer extends Module {
         }
     }
 
+    /** 游戏内自绘界面没有原版 Screen 的 charTyped，字符走 Keyboard.onChar 的混入事件。 */
+    @EventTarget
+    public void onChar(CharInputEvent event) {
+        if (!inGame() || !hud.isOpen()) return;
+        char c = (char) event.getCodepoint();
+        if (hud.onChar(c)) event.setCancelled(true);
+    }
+
     @EventTarget
     public void onTick(TickEvent event) {
         MusicManager m = MusicManager.getInstance();
+        if (m != null) m.tick();   // 限流解除后自动补拉歌单
+        if (m != null && !m.getApiUrl().equals(apiUrl.getValue().trim())) {
+            // 换接口地址：清掉限流状态重新拉
+            m.setApiUrl(apiUrl.getValue());
+            m.clearThrottle();
+            m.setSource(server.getValue(), playlistId.getValue(), true);
+        }
         if (m != null && m.isTranslationEnabled() != translation.getValue()) {
             m.setTranslationEnabled(translation.getValue());
         }
@@ -103,6 +125,10 @@ public final class MusicPlayer extends Module {
                 lastSaveMs = now;
                 m.rememberNow();
             }
+        }
+        // 退出世界/回到标题界面时自动收起界面，别让覆盖层挂在菜单上
+        if ((mc.player == null || mc.world == null) && hud.isOpen()) {
+            hud.setOpen(false);
         }
         if (!inGame()) return;
         if (hud.isOpen()) {

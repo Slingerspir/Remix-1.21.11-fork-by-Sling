@@ -43,9 +43,19 @@ public final class MusicManager implements IMinecraft {
         instance = new MusicManager();
     }
 
-    private final String apiUrl = "https://meting.mikus.ink/api";
+    /** 公共 meting 实例经常挂/限流，做成可配置的，方便换成自建或别的镜像 */
+    private String apiUrl = "https://meting.mikus.ink/api";
     private String server = "netease";
     private String playlistId = "0";
+
+    public String getApiUrl() {
+        return apiUrl;
+    }
+
+    public void setApiUrl(String url) {
+        if (url == null || url.trim().isEmpty()) return;
+        this.apiUrl = url.trim();
+    }
 
     private final List<Song> playlist = new ArrayList<>();
     private final List<LrcLine> lyrics = new ArrayList<>();
@@ -57,6 +67,18 @@ public final class MusicManager implements IMinecraft {
     private double volume = 0.8;
     private boolean translationEnabled = true;
     private boolean autoAdvancing;
+    private int failureStreak;
+    private long lastFailureAt;
+    /** 因为限流没拉到歌单：解禁后自动重试一次 */
+    private boolean reloadWanted;
+
+    /** 每 tick 由模块驱动：限流解除后把之前失败的操作补上。 */
+    public void tick() {
+        if (reloadWanted && !isThrottled()) {
+            reloadWanted = false;
+            setSource(server, playlistId, playing);
+        }
+    }
     private long lastStartWall;
     private long generation;
     private int loadToken;
@@ -82,13 +104,22 @@ public final class MusicManager implements IMinecraft {
         private final String url;
         private final String pic;
         private final String lrc;
+        /** 时长（秒）；0 = 未知。播放过之后会回填真实值 */
+        private volatile double duration;
+        private final String album;
 
         public Song(String name, String artist, String url, String pic, String lrc) {
+            this(name, artist, url, pic, lrc, 0.0, "");
+        }
+
+        public Song(String name, String artist, String url, String pic, String lrc, double duration, String album) {
             this.name = name;
             this.artist = artist;
             this.url = url;
             this.pic = pic;
             this.lrc = lrc;
+            this.duration = duration;
+            this.album = album == null ? "" : album;
         }
 
         public String getName() { return name; }
@@ -96,6 +127,9 @@ public final class MusicManager implements IMinecraft {
         public String getUrl() { return url; }
         public String getPic() { return pic; }
         public String getLrc() { return lrc; }
+        public String getAlbum() { return album; }
+        public double getDuration() { return duration; }
+        public void setDuration(double seconds) { this.duration = seconds; }
     }
 
     public static final class LrcLine {
@@ -158,15 +192,26 @@ public final class MusicManager implements IMinecraft {
 
         final int token = ++loadToken;
         runAsync(() -> {
-            List<Song> loaded = new ArrayList<>();
+            String url = apiUrl + "?server=" + server + "&type=playlist&id=" + playlistId;
+            String json = null;
             try {
-                String url = apiUrl + "?server=" + server + "&type=playlist&id=" + playlistId;
-                loaded = parsePlaylist(fetch(url));
+                json = get(url);
             } catch (Exception ignored) {
             }
-            final List<Song> list = loaded;
+            // 拿不到响应（限流 / 网络失败）就保持现状，绝不能把已有歌单清空
+            final String body = json;
             mc.execute(() -> {
                 if (token != loadToken) return;
+                if (body == null) {
+                    if (isThrottled()) {
+                        reloadWanted = true;   // 解禁后自动重来一次
+                        chat("接口限流中，约 " + getThrottleSeconds() + " 秒后自动重试（" + getThrottleMessage() + "）");
+                    } else {
+                        chat("歌单请求失败，请检查网络或接口地址");
+                    }
+                    return;
+                }
+                List<Song> list = parsePlaylist(body);
                 playlist.clear();
                 playlist.addAll(list);
                 lyrics.clear();
@@ -176,6 +221,7 @@ public final class MusicManager implements IMinecraft {
                 progressSeconds = 0;
                 coverTexture = null;
                 coverPalette = new int[]{0xFF34D399, 0xFF4CC9F0, 0xFF22D3EE};
+                resetCaches();
                 generation++;
                 FxMusicRuntime.showList(playlistJson(), -1);
                 if (wantResume && resumeIndex >= 0 && resumeIndex < playlist.size()) {
@@ -267,7 +313,19 @@ public final class MusicManager implements IMinecraft {
                 String url = o.has("url") ? o.get("url").getAsString() : "";
                 String pic = o.has("pic") ? o.get("pic").getAsString() : "";
                 String lrc = o.has("lrc") ? o.get("lrc").getAsString() : "";
-                out.add(new Song(name, artist, url, pic, lrc));
+                String album = o.has("album") ? o.get("album").getAsString() : "";
+                double dur = 0;
+                for (String key : new String[]{"duration", "interval", "length", "time"}) {
+                    if (!o.has(key)) continue;
+                    try {
+                        double v = o.get(key).getAsDouble();
+                        if (v > 10000) v /= 1000.0;   // 有的接口给毫秒
+                        if (v > 0 && v < 7200) dur = v;
+                        break;
+                    } catch (Exception ignored) {
+                    }
+                }
+                out.add(new Song(name, artist, url, pic, lrc, dur, album));
             }
         } catch (Exception ignored) {
         }
@@ -294,7 +352,7 @@ public final class MusicManager implements IMinecraft {
 
         FxMusicRuntime.showList(playlistJson(), index);
         FxMusicRuntime.showTrack(song.getName(), song.getArtist(), song.getPic(), index, playlist.size());
-        FxMusicRuntime.play(song.getUrl(), progressSeconds, true, this::onTrackEnded);
+        FxMusicRuntime.play(song.getUrl(), progressSeconds, true, this::onTrackEnded, this::onTrackFailed);
         rememberNow();
 
         // 歌词/翻译/封面异步加载，不阻塞游戏线程
@@ -410,9 +468,10 @@ public final class MusicManager implements IMinecraft {
             playing = false;
             return;
         }
+        // 才开始 0.8 秒就"播完"了，说明这首媒体本身有问题（时长 0 / 流被打断），
+        // 交给失败流程去重试或跳过，而不是直接把整个播放器停掉
         if (playlist.size() > 1 && System.currentTimeMillis() - lastStartWall < 800) {
-            playing = false;
-            FxMusicRuntime.stop();
+            onTrackFailed();
             return;
         }
         if (autoAdvancing) return;
@@ -421,6 +480,42 @@ public final class MusicManager implements IMinecraft {
             playIndex((currentIndex + 1) % playlist.size());
         } finally {
             autoAdvancing = false;
+        }
+    }
+
+    /**
+     * 这首真的播不了（FX 侧已经原地重试过两次）。
+     * 换下一首再试，但短时间内连续失败就停下来，避免坏掉的歌单被一路刷过去。
+     */
+    private void onTrackFailed() {
+        long now = System.currentTimeMillis();
+        failureStreak = (now - lastFailureAt < 4000) ? failureStreak + 1 : 1;
+        lastFailureAt = now;
+
+        if (failureStreak >= 3 || playlist.size() <= 1) {
+            failureStreak = 0;
+            playing = false;
+            FxMusicRuntime.stop();
+            chat("多首歌曲播放失败，已停止播放");
+            return;
+        }
+        String name = currentIndex >= 0 && currentIndex < playlist.size() ? playlist.get(currentIndex).getName() : "当前歌曲";
+        chat("《" + name + "》播放失败，已跳过");
+        if (autoAdvancing) return;
+        autoAdvancing = true;
+        try {
+            playIndex((currentIndex + 1) % playlist.size());
+        } finally {
+            autoAdvancing = false;
+        }
+    }
+
+    private void chat(String message) {
+        try {
+            if (mc.player != null) {
+                mc.player.sendMessage(net.minecraft.text.Text.literal("§b[音乐] §f" + message), false);
+            }
+        } catch (Throwable ignored) {
         }
     }
 
@@ -444,6 +539,11 @@ public final class MusicManager implements IMinecraft {
             double d = FxMusicRuntime.getDurationSeconds();
             if (d > 0) {
                 durationSeconds = d;
+                // 回填到歌单，这样列表里也能显示真实时长
+                if (currentIndex >= 0 && currentIndex < playlist.size()) {
+                    Song song = playlist.get(currentIndex);
+                    if (Math.abs(song.getDuration() - d) > 1.0) song.setDuration(d);
+                }
                 return d;
             }
         }
@@ -611,15 +711,265 @@ public final class MusicManager implements IMinecraft {
     }
 
     private String fetch(String url) throws Exception {
+        return get(url);
+    }
+
+    // ===================== 请求闸门（限流保护）=====================
+
+    /** 被接口限流时，这段时间内不再发任何请求 */
+    private volatile long throttledUntil;
+    private volatile String throttleMessage = "";
+
+    public boolean isThrottled() {
+        return System.currentTimeMillis() < throttledUntil;
+    }
+
+    /** 距离解禁还有多少秒。 */
+    public long getThrottleSeconds() {
+        return Math.max(0L, (throttledUntil - System.currentTimeMillis()) / 1000L);
+    }
+
+    public String getThrottleMessage() {
+        return throttleMessage;
+    }
+
+    /** 手动解除限流（换了接口地址时用）。 */
+    public void clearThrottle() {
+        throttledUntil = 0L;
+        throttleMessage = "";
+    }
+
+    private void noteThrottle(int retryAfterSeconds, String message) {
+        // 上限一小时：接口偶尔会返回离谱的 retryAfter，封太久不如定期再试
+        long seconds = Math.max(1, Math.min(retryAfterSeconds, 3600));
+        throttledUntil = System.currentTimeMillis() + seconds * 1000L;
+        throttleMessage = message == null || message.isEmpty() ? "接口限流" : message;
+    }
+
+    /**
+     * 统一出口：GET 一个 URL 并返回响应体。
+     * 识别 429（公共 meting 接口被刷爆时会返回带 retryAfter 的限流 JSON），
+     * 一旦限流就把整个数据层闸住 —— 否则后续连歌单都会被限流打断。
+     * 返回 null 表示这次没拿到数据（被限流或请求失败）。
+     */
+    private String get(String url) throws Exception {
+        if (isThrottled()) return null;
         HttpResponse<String> resp = http.send(
-                HttpRequest.newBuilder(URI.create(url)).GET().build(),
+                HttpRequest.newBuilder(URI.create(url)).header("User-Agent", USER_AGENT).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
-        return resp.body();
+        String body = resp.body();
+        int code = resp.statusCode();
+        if (code == 200) return body;
+        // 只有明确的限流才闸住整个数据层；翻译接口偶尔 404 之类的不能连累别人
+        if (code == 429 || code == 503) {
+            int retry = 60;
+            String msg = "接口限流";
+            try {
+                JsonObject o = JsonParser.parseString(body).getAsJsonObject();
+                if (o.has("retryAfter")) retry = o.get("retryAfter").getAsInt();
+                if (o.has("message")) msg = o.get("message").getAsString();
+            } catch (Exception ignored) {
+            }
+            noteThrottle(retry, msg);
+        }
+        return null;
     }
 
     private static void runAsync(Runnable r) {
         Thread t = new Thread(r, "Remix-Music-IO");
         t.setDaemon(true);
         t.start();
+    }
+
+    // ===================== 列表缩略图 =====================
+
+    private final Map<String, Identifier> thumbnails = new HashMap<>();
+    private final java.util.Set<String> thumbsPending = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    private java.util.concurrent.ExecutorService thumbPool;
+
+    /** 取列表行用的小封面；还没下载好就返回 null，并在后台排队下载。 */
+    public Identifier getThumbnail(String url) {
+        if (url == null || url.isEmpty()) return null;
+        Identifier id = thumbnails.get(url);
+        if (id != null) return id;
+        if (isThrottled()) return null;   // 被限流时连封面请求也停掉
+        if (thumbsPending.size() < 80 && thumbsPending.add(url)) {
+            ensurePool();
+            thumbPool.execute(() -> downloadThumb(url));
+        }
+        return null;
+    }
+
+    private void ensurePool() {
+        if (thumbPool != null) return;
+        thumbPool = java.util.concurrent.Executors.newFixedThreadPool(2, r -> {
+            Thread t = new Thread(r, "Remix-MusicThumb");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    private void downloadThumb(String url) {
+        NativeImage img = null;
+        try {
+            String ref = "tencent".equals(server) ? "https://y.qq.com/" : "https://music.163.com/";
+            HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                    .header("User-Agent", USER_AGENT)
+                    .header("Referer", ref)
+                    .GET().build();
+            byte[] bytes = http.send(req, HttpResponse.BodyHandlers.ofByteArray()).body();
+            if (bytes != null && bytes.length > 0) img = readImage(bytes);
+        } catch (Throwable ignored) {
+        }
+        final NativeImage image = img;
+        mc.execute(() -> {
+            thumbsPending.remove(url);
+            if (image == null) return;
+            try {
+                NativeImageBackedTexture tex = new NativeImageBackedTexture(() -> "remix_music_thumb", image);
+                Identifier id = Identifier.of("remix", "textures/music/thumb_" + Integer.toHexString(url.hashCode()));
+                mc.getTextureManager().registerTexture(id, tex);
+                tex.upload();
+                thumbnails.put(url, id);
+            } catch (Throwable t) {
+                try {
+                    image.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        });
+    }
+
+    // ===================== 歌词索引（搜索用）=====================
+
+    /** 歌单下标 → 小写歌词全文 */
+    private final Map<Integer, String> lyricIndex = new HashMap<>();
+    private volatile int lyricIndexDone;
+    private volatile int lyricIndexTotal;
+    private volatile long lyricIndexVersion;
+    private boolean lyricIndexRunning;
+    /** 歌词索引最多抓多少首（公共接口限流很凶，别贪） */
+    private static final int LYRIC_INDEX_CAP = 40;
+    /** 每首之间的间隔，压住请求频率换稳定 */
+    private static final long LYRIC_INDEX_INTERVAL_MS = 700L;
+    /** 歌词搜索开关：关掉就不发任何索引请求 */
+    private boolean lyricSearchEnabled = true;
+
+    public void setLyricSearchEnabled(boolean enabled) {
+        this.lyricSearchEnabled = enabled;
+    }
+
+    /**
+     * 搜索歌单：歌名 / 歌手 / 专辑直接命中，歌词必须等后台索引抓到才参与匹配。
+     * 返回的是歌单下标。
+     */
+    public List<Integer> search(String query) {
+        List<Integer> out = new ArrayList<>();
+        String q = query == null ? "" : query.trim().toLowerCase();
+        if (q.isEmpty()) {
+            for (int i = 0; i < playlist.size(); i++) out.add(i);
+            return out;
+        }
+        for (int i = 0; i < playlist.size(); i++) {
+            Song s = playlist.get(i);
+            if (s.getName().toLowerCase().contains(q)
+                    || s.getArtist().toLowerCase().contains(q)
+                    || s.getAlbum().toLowerCase().contains(q)) {
+                out.add(i);
+                continue;
+            }
+            String lrc = lyricIndex.get(i);
+            if (lrc != null && lrc.contains(q)) out.add(i);
+        }
+        return out;
+    }
+
+    /** 索引进度（已完成的歌数 / 总数），界面用它显示"正在索引歌词"。 */
+    public int getLyricIndexDone() { return lyricIndexDone; }
+
+    public int getLyricIndexTotal() { return lyricIndexTotal; }
+
+    /** 索引每更新一批就 +1，界面据此重建结果列表。 */
+    public long getLyricIndexVersion() { return lyricIndexVersion; }
+
+    public boolean isLyricIndexing() { return lyricIndexRunning; }
+
+    /**
+     * 后台抓取歌单歌词做索引。
+     *
+     * <p><b>必须严格限速</b>：公共 meting 实例按 IP 限流，之前并发狂抓 300 首直接把这个 IP
+     * 打成 429（retryAfter 近一小时），连歌单都拉不动。现在改成单线程顺序抓、每首之间留
+     * {@link #LYRIC_INDEX_INTERVAL_MS} 毫秒、只索引前 {@link #LYRIC_INDEX_CAP} 首，
+     * 一旦被限流立刻停下；等解禁后用户再搜一次会接着索引。
+     */
+    public void ensureLyricIndex() {
+        if (!lyricSearchEnabled || lyricIndexRunning || playlist.isEmpty() || isThrottled()) return;
+        lyricIndexRunning = true;
+
+        final int cap = Math.min(playlist.size(), LYRIC_INDEX_CAP);
+        lyricIndexTotal = cap;
+        final List<int[]> keep = new ArrayList<>();
+        final List<String> urls = new ArrayList<>();
+        for (int i = 0; i < cap; i++) {
+            String url = playlist.get(i).getLrc();
+            if (url == null || url.isEmpty() || lyricIndex.containsKey(i)) continue;
+            keep.add(new int[]{i});
+            urls.add(url);
+        }
+        if (keep.isEmpty()) {
+            lyricIndexRunning = false;
+            return;
+        }
+
+        Thread worker = new Thread(() -> {
+            try {
+                for (int n = 0; n < keep.size(); n++) {
+                    if (isThrottled()) break;      // 被限流就收手，别再火上浇油
+                    String text = null;
+                    try {
+                        text = fetch(urls.get(n));
+                    } catch (Throwable ignored) {
+                    }
+                    if (text != null && !text.isEmpty()) {
+                        final int idx = keep.get(n)[0];
+                        final String t = text.toLowerCase();
+                        mc.execute(() -> {
+                            lyricIndex.put(idx, t);
+                            lyricIndexVersion++;
+                        });
+                    }
+                    mc.execute(() -> {
+                        lyricIndexDone++;
+                        lyricIndexVersion++;
+                    });
+                    try {
+                        Thread.sleep(LYRIC_INDEX_INTERVAL_MS);
+                    } catch (InterruptedException ignored) {
+                        break;
+                    }
+                }
+            } finally {
+                mc.execute(() -> lyricIndexRunning = false);
+            }
+        }, "Remix-MusicLrc");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** 换歌单时清空索引与缩略图缓存。 */
+    private void resetCaches() {
+        lyricIndex.clear();
+        lyricIndexDone = 0;
+        lyricIndexTotal = 0;
+        lyricIndexVersion++;
+        lyricIndexRunning = false;
+        for (Identifier id : thumbnails.values()) {
+            try {
+                mc.getTextureManager().destroyTexture(id);
+            } catch (Throwable ignored) {
+            }
+        }
+        thumbnails.clear();
+        thumbsPending.clear();
     }
 }

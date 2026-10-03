@@ -16,12 +16,16 @@ import injection.accessor.ClientPlayerEntityAccessor;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 
 public final class Criticals extends Module {
     private final ModeValue mode = new ModeValue("Mode", "Packet", "No Ground", "NCP", "Strict", "Sentinel", "Packet", "Heypixel", "Heypixel2");
     private final BoolValue autoJump = new BoolValue("Auto Jump", true, () -> mode.is("Heypixel"));
     private final BoolValue skipTicks = new BoolValue("SkipTicks", true, () -> mode.is("Heypixel"));
     private final NumberValue critRange = new NumberValue("Critical Range", 3.0f, 1, 3.2f, 0.1f, () -> mode.is("Heypixel"));
+    /** 挖方块时不伪装 onGround：否则服务端按"悬空"算挖掘速度，慢 5 倍、方块会弹回来 */
+    private final BoolValue mineFix = new BoolValue("Mine Fix", true);
 
     private boolean armedSkipTick;
 
@@ -132,7 +136,24 @@ public final class Criticals extends Module {
         if (mc.player == null) return;
 
         setSuffix(mode.getValue());
+
+        // 服务端会拿移动包里的 onGround 当"你现在悬空吗"用，其中挖掘速度最敏感：
+        // PlayerEntity.getBlockBreakingSpeed() 里有 `if (!isOnGround()) f /= 5.0F`。
+        // 每 tick 都伪装成悬空的话，服务端累积挖掘进度会比客户端预测慢 5 倍 ——
+        // 客户端早早发 STOP_DESTROY_BLOCK，服务端进度才两成，于是回滚方块并发 BlockUpdate，
+        // 表现就是"方块挖了又弹回来"。挖矿时本来也用不上暴击，直接不伪装。
+        if (mineFix.getValue() && isMiningBlock()) return;
+
         event.setOnGround(false);
+    }
+
+    /** 攻击键按住、且准星指着一个实体方块 —— 正在挖东西。 */
+    private boolean isMiningBlock() {
+        if (mc.world == null || mc.crosshairTarget == null) return false;
+        if (mc.crosshairTarget.getType() != HitResult.Type.BLOCK) return false;
+        if (!mc.options.attackKey.isPressed()) return false;
+        BlockHitResult hit = (BlockHitResult) mc.crosshairTarget;
+        return !mc.world.getBlockState(hit.getBlockPos()).isAir();
     }
 
     private boolean cantCrit(LivingEntity target) {

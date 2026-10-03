@@ -135,9 +135,14 @@ public final class FxMusicRuntime {
     // ===================== 播放（投递 FX 线程操作 MediaPlayer）=====================
 
     public static void play(String url, double seekSeconds, boolean autoplay, Runnable ended) {
+        play(url, seekSeconds, autoplay, ended, null);
+    }
+
+    /** @param failed 重试仍失败时的回调（为空则退回 ended），上层据此决定跳过还是停下 */
+    public static void play(String url, double seekSeconds, boolean autoplay, Runnable ended, Runnable failed) {
         runOnFx(() -> {
             MusicFxApp a = app;
-            if (a != null) a.playFx(url, seekSeconds, autoplay, ended);
+            if (a != null) a.playFx(url, seekSeconds, autoplay, ended, failed);
         });
     }
 

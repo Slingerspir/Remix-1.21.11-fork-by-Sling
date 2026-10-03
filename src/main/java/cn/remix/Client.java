@@ -55,6 +55,14 @@ public class Client implements IMinecraft {
     }
 
     public void shutdown() {
+        // 关游戏时自动停掉 MusicPlayer：收好播放进度、停掉音频、收起界面，避免残留的
+        // JavaFX 播放器/覆盖层拖住退出流程
+        try {
+            cn.remix.module.impl.misc.MusicPlayer music =
+                    getModuleManager().getModule(cn.remix.module.impl.misc.MusicPlayer.class);
+            if (music != null && music.isEnabled()) music.setEnabled(false);
+        } catch (Throwable ignored) {
+        }
         configManager.saveAll();
     }
 }
